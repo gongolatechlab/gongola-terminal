@@ -1,5 +1,12 @@
 import './style.css'
 import { createChart, CandlestickSeries, ColorType } from 'lightweight-charts'
+import {
+  MARKETS,
+  TIMEFRAMES,
+  getSimulatedCandles,
+  getLatestPrice,
+  formatPrice,
+} from './market-data.js'
 
 document.querySelector('#app').innerHTML = `
   <header class="topbar">
@@ -20,8 +27,8 @@ document.querySelector('#app').innerHTML = `
     <section class="market-header">
       <div>
         <span class="eyebrow">MARKET ANALYSIS</span>
-        <h1>EURUSD</h1>
-        <span class="market-subtitle">Euro / US Dollar</span>
+        <h1 id="market-symbol">EURUSD</h1>
+        <span class="market-subtitle" id="market-name">Euro / US Dollar</span>
       </div>
       <div class="price-block">
         <span class="price" id="current-price">1.08500</span>
@@ -87,6 +94,11 @@ document.querySelector('#app').innerHTML = `
   </main>
 `
 
+const state = {
+  symbol: 'EURUSD',
+  timeframeMinutes: 15,
+}
+
 const chartElement = document.getElementById('chart')
 
 const chart = createChart(chartElement, {
@@ -118,36 +130,42 @@ const candles = chart.addSeries(CandlestickSeries, {
   wickDownColor: '#ef5350',
 })
 
-let previous = 1.085
+const symbolEl = document.getElementById('market-symbol')
+const nameEl = document.getElementById('market-name')
+const priceEl = document.getElementById('current-price')
 
-const data = []
-const now = Math.floor(Date.now() / 1000)
-const start = now - 100 * 900
+function render() {
+  const data = getSimulatedCandles(state.symbol, state.timeframeMinutes)
+  candles.setData(data)
+  chart.timeScale().fitContent()
 
-for (let i = 0; i < 100; i++) {
-  const open = previous
-  const move = (Math.random() - 0.48) * 0.0015
-  const close = open + move
+  const market = MARKETS[state.symbol]
+  const latest = getLatestPrice(data)
 
-  data.push({
-    time: start + i * 900,
-    open,
-    high: Math.max(open, close) + Math.random() * 0.0005,
-    low: Math.min(open, close) - Math.random() * 0.0005,
-    close,
-  })
-
-  previous = close
+  symbolEl.textContent = market.symbol
+  nameEl.textContent = market.name
+  priceEl.textContent = formatPrice(latest, state.symbol)
 }
 
-candles.setData(data)
-chart.timeScale().fitContent()
+document.getElementById('market').addEventListener('change', (e) => {
+  state.symbol = e.target.value
+  render()
+})
+
+const tfButtons = Array.from(document.querySelectorAll('.timeframes button'))
+tfButtons.forEach((btn, index) => {
+  btn.addEventListener('click', () => {
+    tfButtons.forEach((b) => b.classList.remove('active'))
+    btn.classList.add('active')
+    state.timeframeMinutes = TIMEFRAMES[index].minutes
+    render()
+  })
+})
+
+render()
 
 window.addEventListener('resize', () => {
   chart.applyOptions({
     width: chartElement.clientWidth,
   })
 })
-
-document.getElementById('current-price').textContent =
-  previous.toFixed(5)
