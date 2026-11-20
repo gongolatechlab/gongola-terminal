@@ -1,5 +1,5 @@
 import './style.css'
-import { createChart, CandlestickSeries, ColorType } from 'lightweight-charts'
+import { createChart, CandlestickSeries, ColorType, createSeriesMarkers } from 'lightweight-charts'
 import {
   MARKETS,
   TIMEFRAMES,
@@ -7,6 +7,7 @@ import {
   getLatestPrice,
   formatPrice,
 } from './market-data.js'
+import { findSwingPoints } from './analysis.js'
 
 document.querySelector('#app').innerHTML = `
   <header class="topbar">
@@ -130,6 +131,9 @@ const candles = chart.addSeries(CandlestickSeries, {
   wickDownColor: '#ef5350',
 })
 
+// Create the markers plugin once
+const markersPlugin = createSeriesMarkers(candles, [])
+
 const symbolEl = document.getElementById('market-symbol')
 const nameEl = document.getElementById('market-name')
 const priceEl = document.getElementById('current-price')
@@ -138,6 +142,17 @@ function render() {
   const data = getSimulatedCandles(state.symbol, state.timeframeMinutes)
   candles.setData(data)
   chart.timeScale().fitContent()
+
+  // Run Analysis
+  const swings = findSwingPoints(data, 3)
+  const markers = swings.map((swing) => ({
+    time: swing.time,
+    position: swing.type === 'high' ? 'aboveBar' : 'belowBar',
+    color: swing.type === 'high' ? '#ef5350' : '#16b981',
+    shape: swing.type === 'high' ? 'arrowDown' : 'arrowUp',
+    text: swing.type === 'high' ? 'SH' : 'SL',
+  }))
+  markersPlugin.setMarkers(markers)
 
   const market = MARKETS[state.symbol]
   const latest = getLatestPrice(data)
