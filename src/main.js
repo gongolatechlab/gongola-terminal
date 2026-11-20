@@ -7,7 +7,7 @@ import {
   getLatestPrice,
   formatPrice,
 } from './market-data.js'
-import { findSwingPoints } from './analysis.js'
+import { prepareChartData } from './prepare-data.js'
 
 document.querySelector('#app').innerHTML = `
   <header class="topbar">
@@ -131,21 +131,32 @@ const candles = chart.addSeries(CandlestickSeries, {
   wickDownColor: '#ef5350',
 })
 
-// Create the markers plugin once
 const markersPlugin = createSeriesMarkers(candles, [])
 
 const symbolEl = document.getElementById('market-symbol')
 const nameEl = document.getElementById('market-name')
 const priceEl = document.getElementById('current-price')
+const statusLabel = document.querySelector('.live-label')
 
 function render() {
-  const data = getSimulatedCandles(state.symbol, state.timeframeMinutes)
-  candles.setData(data)
+  const rawData = getSimulatedCandles(state.symbol, state.timeframeMinutes)
+  const prepared = prepareChartData(rawData)
+
+  if (!prepared.valid) {
+    candles.setData([])
+    markersPlugin.setMarkers([])
+    symbolEl.textContent = MARKETS[state.symbol].symbol
+    nameEl.textContent = MARKETS[state.symbol].name
+    priceEl.textContent = '—'
+    statusLabel.textContent = `DATA VALIDATION ERROR (${prepared.errors.length} errors)`
+    statusLabel.style.color = '#ef5350'
+    return
+  }
+
+  candles.setData(prepared.candles)
   chart.timeScale().fitContent()
 
-  // Run Analysis
-  const swings = findSwingPoints(data, 3)
-  const markers = swings.map((swing) => ({
+  const markers = prepared.swings.map((swing) => ({
     time: swing.time,
     position: swing.type === 'high' ? 'aboveBar' : 'belowBar',
     color: swing.type === 'high' ? '#ef5350' : '#16b981',
@@ -155,11 +166,13 @@ function render() {
   markersPlugin.setMarkers(markers)
 
   const market = MARKETS[state.symbol]
-  const latest = getLatestPrice(data)
+  const latest = getLatestPrice(prepared.candles)
 
   symbolEl.textContent = market.symbol
   nameEl.textContent = market.name
   priceEl.textContent = formatPrice(latest, state.symbol)
+  statusLabel.textContent = 'SIMULATED DATA'
+  statusLabel.style.color = ''
 }
 
 document.getElementById('market').addEventListener('change', (e) => {
