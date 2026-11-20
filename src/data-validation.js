@@ -26,7 +26,22 @@ export function validateOHLC(candles) {
       continue;
     }
 
-    const requiredFields = ['time', 'open', 'high', 'low', 'close'];
+    // 1. Independent Timestamp Validation
+    const time = candle.time;
+    if (time === undefined) {
+      errors.push({ index, reason: 'Missing field: time' });
+    } else if (typeof time !== 'number' || !Number.isInteger(time) || !isFinite(time)) {
+      errors.push({ index, reason: 'time must be a finite integer number' });
+    } else {
+      if (time <= lastTime) {
+        errors.push({ index, reason: 'time must be strictly greater than previous candle time' });
+      } else {
+        lastTime = time;
+      }
+    }
+
+    // 2. OHLC Field Validation
+    const requiredFields = ['open', 'high', 'low', 'close'];
     let missingField = false;
     for (const field of requiredFields) {
       if (!(field in candle)) {
@@ -36,15 +51,9 @@ export function validateOHLC(candles) {
     }
     if (missingField) continue;
 
-    const { time, open, high, low, close } = candle;
+    const { open, high, low, close } = candle;
 
-    // Validate time
-    if (typeof time !== 'number' || !isFinite(time)) {
-      errors.push({ index, reason: 'time must be a finite number' });
-      continue;
-    }
-
-    // Validate prices
+    // 3. OHLC Price Validation
     const priceFields = ['open', 'high', 'low', 'close'];
     let hasPriceError = false;
     for (const field of priceFields) {
@@ -56,7 +65,7 @@ export function validateOHLC(candles) {
     }
     if (hasPriceError) continue;
 
-    // Validate OHLC relationships
+    // 4. OHLC Relationship Validation
     if (high < low) {
       errors.push({ index, reason: 'high must be greater than or equal to low' });
     }
@@ -72,12 +81,6 @@ export function validateOHLC(candles) {
     if (low > close) {
       errors.push({ index, reason: 'low must be less than or equal to close' });
     }
-
-    // Validate timestamp ordering
-    if (time <= lastTime) {
-      errors.push({ index, reason: 'time must be strictly greater than previous candle time' });
-    }
-    lastTime = time;
   }
 
   return {

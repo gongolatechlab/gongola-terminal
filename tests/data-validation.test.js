@@ -72,3 +72,45 @@ test('non-array input is handled', () => {
   assert.strictEqual(result.valid, false);
   assert.ok(result.errors.some(e => e.reason.includes('Input must be an array')));
 });
+
+// Regression tests for Phase 1.1
+
+test('invalid price at T=300 followed by valid T=200 fails on timestamp', () => {
+  const candles = [
+    { time: 300, open: NaN, high: 12, low: 9, close: 11 },
+    { time: 200, open: 11, high: 13, low: 10, close: 12 },
+  ];
+  const result = validateOHLC(candles);
+  assert.strictEqual(result.valid, false);
+  assert.ok(result.errors.some(e => e.reason.includes('time must be strictly greater')));
+});
+
+test('missing OHLC field at T=300 followed by T=200 fails on timestamp', () => {
+  const candles = [
+    { time: 300, open: 10, high: 12, low: 9 }, // missing close
+    { time: 200, open: 11, high: 13, low: 10, close: 12 },
+  ];
+  const result = validateOHLC(candles);
+  assert.strictEqual(result.valid, false);
+  assert.ok(result.errors.some(e => e.reason.includes('time must be strictly greater')));
+});
+
+test('fractional timestamps fail', () => {
+  const candles = [
+    { time: 1000.5, open: 10, high: 12, low: 9, close: 11 },
+  ];
+  const result = validateOHLC(candles);
+  assert.strictEqual(result.valid, false);
+  assert.ok(result.errors.some(e => e.reason.includes('time must be a finite integer number')));
+});
+
+test('invalid timestamp values fail', () => {
+  const candles = [
+    { time: '1000', open: 10, high: 12, low: 9, close: 11 },
+    { time: NaN, open: 11, high: 13, low: 10, close: 12 },
+    { time: Infinity, open: 10, high: 12, low: 9, close: 11 },
+  ];
+  const result = validateOHLC(candles);
+  assert.strictEqual(result.valid, false);
+  assert.strictEqual(result.errors.filter(e => e.reason === 'time must be a finite integer number').length, 3);
+});
