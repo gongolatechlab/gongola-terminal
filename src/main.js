@@ -1,3 +1,4 @@
+import { inspectICTMachine } from './ict-machine/integration.js'
 import './style.css'
 import { createChart, CandlestickSeries, ColorType, createSeriesMarkers } from 'lightweight-charts'
 import {
@@ -94,6 +95,14 @@ document.querySelector('#app').innerHTML = `
     </footer>
   </main>
 `
+
+// ICT Machine integration is intentionally disabled.
+const ictIntegration = inspectICTMachine({
+  source: 'simulated',
+  candles: [],
+})
+
+console.info('[Gongola ICT Machine]', ictIntegration.status)
 
 const state = {
   symbol: 'EURUSD',
