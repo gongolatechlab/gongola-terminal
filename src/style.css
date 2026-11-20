@@ -1,0 +1,277 @@
+:root {
+  font-family: Inter, Arial, sans-serif;
+  color: #e5eaf1;
+  background: #080d14;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  font-optical-sizing: auto;
+  font-size: 13px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: #080d14;
+}
+
+button, select {
+  font: inherit;
+}
+
+.topbar {
+  height: 65px;
+  padding: 0 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #0c131d;
+  border-bottom: 1px solid #202c3b;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.brand-mark {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  background: #142d31;
+  border: 1px solid #23776a;
+  color: #4bd6ac;
+  font-size: 19px;
+  font-weight: 800;
+}
+
+.brand strong,
+.brand span {
+  display: block;
+}
+
+.brand strong {
+  letter-spacing: 2px;
+  font-size: 14px;
+}
+
+.brand span {
+  margin-top: 3px;
+  font-size: 8px;
+  color: #8291a4;
+  letter-spacing: 1.2px;
+}
+
+.system-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 9px;
+  color: #8da1b3;
+  letter-spacing: .6px;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #21c58e;
+  box-shadow: 0 0 8px #21c58e;
+}
+
+.terminal {
+  width: 100%;
+  max-width: 1100px;
+  margin: auto;
+  padding: 23px 16px;
+}
+
+.market-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0 21px;
+}
+
+.eyebrow,
+.panel-heading {
+  color: #8494a8;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+}
+
+.market-header h1 {
+  margin: 7px 0 2px;
+  font-size: 27px;
+  letter-spacing: .5px;
+}
+
+.market-subtitle {
+  font-size: 11px;
+  color: #8594a7;
+}
+
+.price-block {
+  text-align: right;
+}
+
+.price {
+  display: block;
+  font-size: 21px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.change {
+  display: block;
+  margin-top: 5px;
+  font-size: 8px;
+  color: #e3ad58;
+  letter-spacing: .6px;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  border-top: 1px solid #1e2a38;
+  border-bottom: 1px solid #1e2a38;
+}
+
+select {
+  background: #121d29;
+  color: #dce6f0;
+  border: 1px solid #2a394b;
+  border-radius: 3px;
+  padding: 9px 10px;
+  outline: none;
+}
+
+.timeframes {
+  display: flex;
+  gap: 5px;
+}
+
+.timeframes button {
+  padding: 8px 10px;
+  color: #8b9bad;
+  background: #111a26;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  font-size: 10px;
+}
+
+.timeframes button.active {
+  color: #4bd6ac;
+  background: #122b2b;
+  border-color: #286d61;
+}
+
+.chart-panel,
+.machine-panel {
+  margin-top: 18px;
+  background: #0b111a;
+  border: 1px solid #202c3b;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.panel-heading {
+  min-height: 42px;
+  padding: 0 13px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #202c3b;
+}
+
+.live-label {
+  color: #d9a750;
+  font-size: 8px;
+}
+
+#chart {
+  width: 100%;
+  height: 340px;
+}
+
+.machine-version {
+  color: #4bd6ac;
+  font-size: 8px;
+}
+
+.machine-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.metric {
+  min-height: 83px;
+  padding: 16px 13px;
+  border-bottom: 1px solid #202c3b;
+}
+
+.metric:nth-child(odd) {
+  border-right: 1px solid #202c3b;
+}
+
+.metric span {
+  display: block;
+  color: #8291a4;
+  font-size: 8px;
+  letter-spacing: .8px;
+}
+
+.metric strong {
+  display: block;
+  margin-top: 10px;
+  font-size: 10px;
+  letter-spacing: .4px;
+}
+
+.metric .neutral {
+  color: #d9a750;
+}
+
+footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 22px 2px;
+  color: #69798c;
+  font-size: 8px;
+  letter-spacing: .6px;
+}
+
+@media (min-width: 700px) {
+  .terminal {
+    padding: 35px 28px;
+  }
+
+  .machine-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .metric {
+    border-bottom: 0;
+    border-right: 1px solid #202c3b;
+  }
+
+  .metric:last-child {
+    border-right: 0;
+  }
+
+  #chart {
+    height: 440px;
+  }
+}
