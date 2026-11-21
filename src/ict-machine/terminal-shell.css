@@ -228,3 +228,33 @@ body.gongola-elite.g-shell-v14 .g-shell-sheet-close{
   border-radius:4px!important;padding:6px 11px!important;min-height:29px!important;
   background:#1f2935!important;color:#e9d5ac!important;font-size:11px!important;margin:-4px 0 8px 8px;
 }
+
+/* Keep the feed status compact after refresh */
+body.gongola-elite.g-shell-v14 .g-shell-status {
+  height: 30px;
+  min-height: 30px;
+  max-height: 30px;
+  box-sizing: border-box;
+  flex-wrap: nowrap;
+  position: relative;
+}
+body.gongola-elite.g-shell-v14 .g-shell-status .gongola-elite-feed-status {
+  min-width: 0;
+  overflow: hidden;
+}
+body.gongola-elite.g-shell-v14 .g-shell-status .gongola-elite-feed-status.expanded {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  padding: 12px !important;
+  background: #171c24;
+  border-bottom: 1px solid #303947 !important;
+  overflow: visible;
+}
+body.gongola-elite.g-shell-v14 .g-shell-status .gongola-elite-feed-status.expanded .gongola-elite-message {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  overflow: visible;
+}
