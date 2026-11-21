@@ -2,6 +2,8 @@
    Guest use makes no auth requests beyond checking an existing session; no telemetry or trading records are uploaded.
    A signed-in account stores only its identity-provider email and chart preferences in Supabase Auth user_metadata.
    Scope the ONE existing settings key by login ID; all other localStorage keys are untouched. */
+import { createClient } from '@supabase/supabase-js';
+
 const AUTH_URL = 'https://usayycqwgdyklfzrinvc.supabase.co';
 const ANON_PUBLIC_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVzYXl5Y3F3Z2R5a2xmenJpbnZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM2MTg5NjYsImV4cCI6MjEwOTE5NDk2Nn0.jgEo3bvyKK_ak1yMRILX-32tCrg8BKSlzDvu-ccDq3w';
 const SETTINGS_KEY = 'gongola-terminal-ict-settings-v1';
@@ -196,12 +198,15 @@ function buildWelcome(){
 export async function initializeTerminalAccess(){
   if(!document.getElementById('app'))return;
   // Best effort: the Terminal stays available as guest if the CDN or identity server fails.
-  if(window.supabase && typeof window.supabase.createClient==='function'){
-    try{
-      authClient=window.supabase.createClient(AUTH_URL,ANON_PUBLIC_KEY,{
-        auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}
-      });
-    }catch{authClient=null;}
+  // Bundle Supabase Auth into the application. The previous external UMD script
+  // could fail or load late on mobile, leaving the sign-in button unusable.
+  try {
+    authClient=createClient(AUTH_URL,ANON_PUBLIC_KEY,{
+      auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}
+    });
+  } catch(error) {
+    authClient=null;
+    console.warn('Gongola authentication could not initialize:',error?.message);
   }
   let signedIn=null;
   if(authClient){
