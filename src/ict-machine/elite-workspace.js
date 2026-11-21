@@ -5,6 +5,7 @@ import './trade-inspector.css';
 import './professional-ui.css';
 import {mountTerminalShell} from './terminal-shell.js';
 import {presentResearchTicket} from './professional-trade-view.js';
+import {formatScenarioPrice} from './trade-plan.js';
 import {LAYER_KEYS, getPresetVisibility, matchingPreset} from './elite-presets.js';
 
 const make = (tag, className = '', text = '') => {
@@ -218,15 +219,19 @@ export function mountEliteWorkspace({
     const p=data.plan;
     const section=make('div','gongola-trade-section','RESEARCH SCENARIO · NOT AN ORDER');
     body.append(section);
+    const priceLevels=p && p.status!=='unavailable'
+      ? Object.fromEntries((p.targets||[]).map(t=>['TP '+t.ratio,formatScenarioPrice(t.price)]))
+      : {};
     const values=p && p.status!=='unavailable'
       ? {'Direction':p.direction==='bullish'?'BUY (illustrative)':'SELL (illustrative)',
-         'Entry model':p.entryRule,'Entry':Number(p.entry).toFixed(2),
-         'Stop rule':p.stopRule,'Stop Loss':Number(p.stop).toFixed(2),
-         'Risk distance':Number(p.risk).toFixed(2),
-         'Take Profit (next untaken liquidity)':p.target===null?'Not available':Number(p.target).toFixed(2),
-         'Target source':p.targetSource??'Not available',
-         'Reward distance':p.reward===null?'Not available':Number(p.reward).toFixed(2),
-         'Risk:Reward':p.rr===null?'Not available':'1:' + p.rr.toFixed(2)}
+         'Entry model':p.entryRule,'Entry':formatScenarioPrice(p.entry),
+         'Stop rule':p.stopRule,'Stop Loss':formatScenarioPrice(p.stop),
+         'Risk distance (1R)':formatScenarioPrice(p.risk),
+         ...priceLevels,
+         'Target calculation':'Entry '+(p.direction==='bullish'?'+':'−')+' (SL distance × 2, 3, 4 or 5)',
+         'Next untaken liquidity (context only)':p.liquidityReference
+           ? formatScenarioPrice(p.liquidityReference.price)+' · '+(p.liquidityReference.source||'untaken liquidity')
+           : 'No eligible reference level'}
       : {'Research plan':'Unavailable'};
     for(const [key,value] of Object.entries(values)){
       body.append(make('dt','',key),make('dd','',String(value)));

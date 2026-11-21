@@ -41,12 +41,12 @@
   "schedules": {
     "gongola-london": {
       "schedule": "30 2 * * 1-5",
-      "function": "api/macro-scheduled.mjs",
+      "function": "api/macro-scheduled",
       "timezone": "America/New_York"
     },
     "gongola-newyork": {
       "schedule": "0 9 * * 1-5",
-      "function": "api/macro-scheduled.mjs",
+      "function": "api/macro-scheduled",
       "timezone": "America/New_York"
     }
   }

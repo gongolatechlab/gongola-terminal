@@ -47,18 +47,28 @@ export function presentResearchTicket(body, data) {
 
   if (available) {
     const prices = el('section', 'g-pro-prices');
-    prices.setAttribute('aria-label', 'Entry, stop and target');
+    prices.setAttribute('aria-label', 'Entry and structural stop loss');
     movePair('Entry', prices, 'is-entry');
     movePair('Stop Loss', prices, 'is-stop');
-    movePair('Take Profit (next untaken liquidity)', prices, 'is-target');
+
     ticket.append(prices);
 
-    const rr = el('section', 'g-pro-rr');
-    rr.setAttribute('aria-label', 'Risk to reward');
-    movePair('Risk:Reward', rr, 'is-rr');
-    const qualifier = el('span', 'g-pro-rr-note', 'Model output · not an order');
-    rr.append(qualifier);
-    ticket.append(rr);
+    const targets = el('section', 'g-pro-targets');
+    targets.setAttribute('aria-label','Stop-loss based risk-reward prices');
+    const header=el('div','g-pro-targets-header');
+    header.append(el('strong','','TAKE-PROFIT TARGET LADDER'),
+      el('span','','Calculated from entry and SL'));
+    targets.append(header);
+    const grid=el('div','g-pro-target-grid');
+    for(const ratio of ['1:2','1:3','1:4','1:5'])
+      movePair('TP '+ratio,grid,'g-pro-target-cell');
+    targets.append(grid);
+    ticket.append(targets);
+    const risk=el('section','g-pro-risk-summary');
+    risk.setAttribute('aria-label','Risk distance calculation');
+    movePair('Risk distance (1R)',risk,'is-risk');
+    risk.append(el('span','g-pro-rr-note','Projected prices · not an order'));
+    ticket.append(risk);
   } else {
     const noPlan = el('div', 'g-pro-empty', 'No eligible research scenario for this drawing.');
     ticket.append(noPlan);
@@ -67,7 +77,7 @@ export function presentResearchTicket(body, data) {
   const mechanics = el('details', 'g-pro-disclosure');
   const mechanicsLabel = el('summary', '', 'Method & calculations');
   const methodGrid = el('div', 'g-pro-method-grid');
-  for (const key of ['Entry model', 'Stop rule', 'Target source', 'Risk distance', 'Reward distance', 'Research plan']) {
+  for (const key of ['Entry model', 'Stop rule', 'Target calculation', 'Next untaken liquidity (context only)', 'Research plan']) {
     movePair(key, methodGrid);
   }
   mechanics.append(mechanicsLabel, methodGrid);

@@ -4,6 +4,8 @@ import {isIntelligencePath,mountIntelligencePage,intelligenceUrl} from './intell
 import './style.css';
 import { createChart, CandlestickSeries, ColorType } from 'lightweight-charts';
 import { mountICTResearchViewer } from './ict-machine/browser-research.js';
+import {initializeTerminalAccess} from './terminal-access.js';
+import './terminal-access.css';
 
 if (isTerminalPath()) {
 // Research-only interface: no simulated price feed, fake bars, or live signals.
@@ -84,6 +86,9 @@ macroNav.textContent = 'MACRO DESK ↗';
 macroNav.setAttribute('aria-label','Open Gongola Market Intelligence');
 macroNav.style.cssText = 'font:650 10px Inter,system-ui,sans-serif;letter-spacing:.5px;color:#d5b67c;text-decoration:none;padding:8px 4px;white-space:nowrap';
 document.querySelector('.topbar')?.append(macroNav);
+
+// Choose a guest workspace or restore a signed-in profile before loading saved filters.
+await initializeTerminalAccess();
 
 const chartElement = document.getElementById('chart');
 const chart = createChart(chartElement, {

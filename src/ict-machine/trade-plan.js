@@ -1,15 +1,40 @@
 /**
  * Gongola Terminal tap-to-analyze research scenarios. NO order creation.
- * Regular FVG edge/3-candle SL reproduce the source's *disabled* signal-filter
- * trade-engine geometry; the liquidity objective replaces the source's fixed
- * 3R TP by explicit user request. OB midpoint is a separate, illustrative model.
+ * Regular FVG edge and 3-candle SL retain source-derived geometry.
+ * Take-profit projections are computed at 2R, 3R, 4R and 5R from structural SL.
+ * Liquidity remains contextual, never an automatic TP. OB midpoint is illustrative.
  * No scenario is called a V0.99 trade signal or a recommendation.
  */
 const finite = Number.isFinite;
 const reason = (message) => ({ status: 'unavailable', message,
-  entry:null, stop:null, target:null, rr:null, risk:null, reward:null, targetSource:null });
+  entry:null, stop:null, target:null, rr:null, risk:null, reward:null, targetSource:null,
+  targets:[],liquidityReference:null });
 
-/** Prioritize price proximity only, not unverified or already-taken levels. */
+
+export const RISK_MULTIPLES=Object.freeze([2,3,4,5]);
+
+/** Preserve sub-cent midpoint precision while showing at least 2 decimals. */
+export function formatScenarioPrice(value){
+  if(!finite(value))return '—';
+  const [whole,fraction]=value.toFixed(4).split('.');
+  return fraction===undefined?String(value):whole+'.'+fraction.replace(/0+$/,'').padEnd(2,'0');
+}
+
+/** For BUY add R multiples to entry; for SELL subtract them. */
+export function calculateRiskRewardTargets({direction,entry,stop}={}){
+  if(!['bullish','bearish'].includes(direction)||![entry,stop].every(finite))return [];
+  const sign=direction==='bullish'?1:-1;
+  const risk=sign*(entry-stop);
+  if(!(risk>0)||!finite(risk))return [];
+  const targets=RISK_MULTIPLES.map(multiple=>({
+    multiple,ratio:'1:'+multiple,
+    price:entry+sign*risk*multiple,
+    reward:risk*multiple
+  }));
+  return targets.every(t=>finite(t.price)&&finite(t.reward))?targets:[];
+}
+
+/** Context only: price proximity, not a validated target or order. */
 export function nextUntakenLiquidity({direction, entry, lastClose, levels} = {}) {
   if (!['bullish','bearish'].includes(direction) || !finite(entry) || !finite(lastClose) || !Array.isArray(levels)) return null;
   const desired = direction === 'bullish' ? 'BSL' : 'SSL';
@@ -57,17 +82,18 @@ export function buildResearchTradePlan({zone, bars, fifteenBars=null, levels=[],
     entryRule='V0.99 regular FVG edge — research projection (signal filter is OFF)';
     stopRule='Extreme of three complete FVG formation candles (V0.99)';
   }
-  const risk=up?entry-stop:stop-entry;
-  if (!(risk>0) || !finite(risk)) return reason('Entry and stop do not define positive risk.');
-  if (up ? lastClose<=stop : lastClose>=stop) return reason('Latest completed close is beyond the structural stop. No current scenario.');
-  const base={status:'no-target',entry,stop,risk,entryRule,stopRule,
-    direction:zone.direction,category:zone.category,target:null,rr:null,reward:null,targetSource:null,
-    message:'No eligible untaken liquidity target beyond both entry and last closed price. TP and RR unavailable.',
-    note:'Research scenario only. No order, alerts, fills, costs or V0.99 signal-filter validation.'};
-  const target=nextUntakenLiquidity({direction:zone.direction,entry,lastClose,levels});
-  if (!target) return base;
-  const reward=up?target.price-entry:entry-target.price;
-  if (!(reward>0) || !finite(reward))return base;
-  return {...base,status:'ready',target:target.price,reward,rr:reward/risk,
-    targetSource:target.source||'Untaken liquidity',message:'Conditional scenario. Validate the setup, feed and spread before any trading decision.'};
+  const targets=calculateRiskRewardTargets({direction:zone.direction,entry,stop});
+  if(!targets.length)return reason('Entry and stop do not define positive, finite risk and targets.');
+  const risk=Math.abs(entry-stop);
+  if(up ? lastClose<=stop : lastClose>=stop)return reason('Latest completed close is beyond the structural stop. No current scenario.');
+  const liquidityReference=nextUntakenLiquidity({direction:zone.direction,entry,lastClose,levels});
+  return{
+    status:'ready',entry,stop,risk,entryRule,stopRule,
+    direction:zone.direction,category:zone.category,
+    targets,liquidityReference,
+    // No single TP is selected and no variable liquidity-based R:R is reported.
+    target:null,rr:null,reward:null,targetSource:null,
+    message:'Stop-based TP prices at 1:2, 1:3, 1:4 and 1:5. Liquidity is contextual only.',
+    note:'Research scenario only. No orders, fills, spreads, fees, slippage or signal validation.'
+  };
 }

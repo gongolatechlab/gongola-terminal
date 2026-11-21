@@ -258,3 +258,34 @@ body.gongola-elite.g-shell-v14 .g-shell-status .gongola-elite-feed-status.expand
   overflow-wrap: anywhere;
   overflow: visible;
 }
+
+
+/* The research engine resets className on refresh, dropping .gongola-elite-message.
+   Use the stable .ict-research-message class to keep the status one line. */
+body.gongola-elite.g-shell-v14 .g-shell-status .gongola-elite-feed-status:not(.expanded) {
+  flex: 1 1 0%;
+  min-width: 0;
+  height: 18px;
+  max-height: 18px;
+  overflow: hidden !important;
+}
+body.gongola-elite.g-shell-v14 .g-shell-status .gongola-elite-feed-status .ict-research-message {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  height: 18px;
+  line-height: 18px;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+body.gongola-elite.g-shell-v14 .g-shell-status .gongola-elite-feed-status.expanded .ict-research-message {
+  height: auto;
+  line-height: 1.5;
+  white-space: normal !important;
+  overflow: visible !important;
+  overflow-wrap: anywhere;
+}

@@ -340,7 +340,17 @@ export function mountICTResearchViewer({chart, candles} = {}) {
     fvgRecentLabel,fvgMinorLabel,fvgSessionLabel,htfIRFilterLabel,fvgDisplacementInput.parentElement,
     fvgWideGapInput.parentElement,
     elt('div','ict-filter-note','FVG Minor DOL and 3-candle session filters default OFF. With both Minor DOL and recent OB filters ON, both directions must match. Session membership uses assumed NY exchange timezone; 4H Minor DOL and 60M HTF IR boundaries are provisional UTC. HTF IR direction filter defaults OFF. Full Signal Filter/trade engine not enabled.'));
-  filterGrid.append(layerGroup,computeGroup);
+  const settingsSaveRow=elt('div','ict-settings-save-row');
+  settingsSaveRow.style.cssText='display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 2px 3px';
+  const settingsSaveButton=elt('button','ict-settings-save-button','Save Settings');
+  settingsSaveButton.type='button';
+  settingsSaveButton.style.cssText='padding:10px 16px;min-height:39px;background:#192e2b;color:#a2efcb;border:1px solid #4d816b;border-radius:8px;font:600 12px system-ui,sans-serif';
+  const settingsSaveStatus=elt('span','ict-settings-save-status','Changes also save automatically');
+  settingsSaveStatus.setAttribute('role','status');
+  settingsSaveStatus.setAttribute('aria-live','polite');
+  settingsSaveStatus.style.cssText='color:#9eabb8;font:11px system-ui,sans-serif';
+  settingsSaveRow.append(settingsSaveButton,settingsSaveStatus);
+  filterGrid.append(layerGroup,computeGroup,settingsSaveRow);
   filterPanel.append(filterHeader,filterGrid);
   const importPanel=elt('details','ict-import-panel');
   const importHead=elt('summary','', 'Data source · import CSV / clear chart');
@@ -371,9 +381,77 @@ export function mountICTResearchViewer({chart, candles} = {}) {
   const overlay=elt('canvas'); overlay.setAttribute('aria-hidden','true');
   Object.assign(overlay.style,{position:'absolute',inset:'0',width:'100%',height:'100%',pointerEvents:'none',zIndex:'4'});
   host.append(overlay);
+  // Keep custom ICT drawings off the chart's price and time scales.
+  const plotWidth=()=>Math.max(0,Math.min(host.clientWidth,chart.timeScale().width()));
   let dataset=null, engineResult=null, structureResult=null, minorResult=null, macroResult=null, htfResult=null, raf=0, resizeObserver, activeSource='none', zonesNearby=true, recentStructuresOnly=true, currentMeta=null;
   let historyMode=false, removedOBs=[], removedFVGs=[];
   let selectedMarket='XAUUSD', selectedTimeframe=15, requestVersion=0, activeRequest=null;
+  const STORAGE_KEY='gongola-terminal-ict-settings-v1';
+  const settingsChecks={
+    ob:obCheck,fvg:fvgCheck,htf:htfCheck,dol:dolCheck,minor:minorCheck,
+    structure:structureCheck,macro:macroCheck,swing:swingCheck,
+    obSwing:obSwingCheck,obAtr:obAtrCheck,obSession:obSessionCheck,
+    obHHLL:obHHLLCheck,obStructure:obStructureCheck,
+    fvgRecent:fvgRecentCheck,fvgMinor:fvgMinorCheck,
+    fvgSession:fvgSessionCheck,htfIR:htfIRFilterCheck
+  };
+  function restoreChartSettings(){
+    let saved;
+    try {saved=JSON.parse(window.localStorage.getItem(STORAGE_KEY));}catch{return;}
+    if(!saved || saved.version!==1 || typeof saved!=='object')return;
+    if(saved.checks && typeof saved.checks==='object'){
+      for(const [key,control] of Object.entries(settingsChecks)){
+        if(typeof saved.checks[key]==='boolean')control.checked=saved.checks[key];
+      }
+    }
+    if(saved.numbers && typeof saved.numbers==='object'){
+      for(const [key,input,min,max] of [
+        ['fvgDisplacement',fvgDisplacementInput,0.01,10],
+        ['fvgWideGap',fvgWideGapInput,1,1000]
+      ]){
+        const value=saved.numbers[key];
+        if(typeof value==='number' && Number.isFinite(value) && value>=min && value<=max)input.value=String(value);
+      }
+    }
+    if(['XAUUSD','BTCUSD'].includes(saved.market)){selectedMarket=saved.market;marketSelect.value=saved.market;}
+    if([5,15].includes(saved.timeframe)){selectedTimeframe=saved.timeframe;tfSelect.value=String(saved.timeframe);}
+    if(typeof saved.zonesNearby==='boolean')zonesNearby=saved.zonesNearby;
+    if(typeof saved.recentStructuresOnly==='boolean')recentStructuresOnly=saved.recentStructuresOnly;
+    labelModeButton.textContent=recentStructuresOnly?'Structure: last 8':'Structure: all labels';
+    updateFilterCount();
+    settingsSaveStatus.textContent='Saved settings restored';
+  }
+  function saveChartSettings(explicit=false){
+    const displacement=Number(fvgDisplacementInput.value);
+    const gap=Number(fvgWideGapInput.value);
+    if(!fvgDisplacementInput.value.trim() || !fvgWideGapInput.value.trim() ||
+       !Number.isFinite(displacement)||displacement<0.01||displacement>10||
+       !Number.isFinite(gap)||gap<1||gap>1000){
+      settingsSaveStatus.textContent='Enter valid FVG values before saving';
+      settingsSaveStatus.style.color='#f2a3a5';
+      return false;
+    }
+    const state={
+      version:1,
+      checks:Object.fromEntries(Object.entries(settingsChecks).map(([key,control])=>[key,control.checked])),
+      numbers:{fvgDisplacement:displacement,fvgWideGap:gap},
+      market:selectedMarket,timeframe:selectedTimeframe,
+      zonesNearby,recentStructuresOnly,savedAt:Date.now()
+    };
+    try{
+      window.localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
+      settingsSaveStatus.textContent=explicit?'Settings saved on this device':'Changes saved automatically';
+      settingsSaveStatus.style.color='#a2efcb';
+      return true;
+    }catch{
+      settingsSaveStatus.textContent='Could not save: browser site storage is unavailable';
+      settingsSaveStatus.style.color='#f2a3a5';
+      return false;
+    }
+  }
+  restoreChartSettings();
+  settingsSaveButton.addEventListener('click',()=>saveChartSettings(true));
+
   let eliteUI = null;
   let researchPriceLines=[];
   function clearResearchPriceLines(){
@@ -419,7 +497,7 @@ export function mountICTResearchViewer({chart, candles} = {}) {
     const x1=getX(bounds.left),x2=getX(bounds.right);
     const y1=candles.priceToCoordinate(bounds.top),y2=candles.priceToCoordinate(bounds.bottom);
     if(![x1,x2,y1,y2].every(Number.isFinite))return;
-    const width=overlay.clientWidth,height=overlay.clientHeight;
+    const width=plotWidth(),height=overlay.clientHeight;
     const start=Math.max(0,Math.min(x1,x2)),end=Math.min(width,Math.max(x1,x2));
     const top=Math.max(0,Math.min(y1,y2)),bottom=Math.min(height,Math.max(y1,y2));
     if(end<=start||bottom<=top)return;
@@ -445,7 +523,7 @@ export function mountICTResearchViewer({chart, candles} = {}) {
     const x1=getX(bounds.left),x2=getX(bounds.right);
     const y1=candles.priceToCoordinate(bounds.top),y2=candles.priceToCoordinate(bounds.bottom);
     if(![x1,x2,y1,y2].every(Number.isFinite))return;
-    const left=Math.max(0,Math.min(x1,x2)), rightX=Math.min(overlay.clientWidth,Math.max(x1,x2));
+    const left=Math.max(0,Math.min(x1,x2)), rightX=Math.min(plotWidth(),Math.max(x1,x2));
     const top=Math.max(0,Math.min(y1,y2)),bottom=Math.min(overlay.clientHeight,Math.max(y1,y2));
     if(rightX<=left || bottom<=top)return;
     const inverse=zone.status.startsWith('inverse_');
@@ -470,7 +548,7 @@ export function mountICTResearchViewer({chart, candles} = {}) {
     const x1=getX(item.anchorTime), x2=getX(item.endTime);
     const y=candles.priceToCoordinate(item.price);
     if (![x1,x2,y].every(Number.isFinite)) return;
-    const w=overlay.clientWidth,h=overlay.clientHeight;
+    const w=plotWidth(),h=overlay.clientHeight;
     if (y < -5 || y > h+5) return;
     const from=Math.max(0,Math.min(w,x1)),to=Math.max(0,Math.min(w,x2));
     if (to <= from) return;
@@ -487,7 +565,7 @@ export function mountICTResearchViewer({chart, candles} = {}) {
   }
   function drawMinorLevel(ctx, item) {
     const x1=getX(item.anchorTime),x2=getX(item.endTime);
-    const y=candles.priceToCoordinate(item.price),w=overlay.clientWidth,h=overlay.clientHeight;
+    const y=candles.priceToCoordinate(item.price),w=plotWidth(),h=overlay.clientHeight;
     if (![x1,x2,y].every(Number.isFinite)||y < -8 || y > h+8) return;
     const a=Math.max(0,Math.min(w,x1)),z=Math.max(0,Math.min(w,x2));
     if (z<=a) return;
@@ -503,7 +581,7 @@ export function mountICTResearchViewer({chart, candles} = {}) {
   }
   function drawMinorEvent(ctx,event) {
     const x=getX(event.time),y=candles.priceToCoordinate(event.price);
-    const w=overlay.clientWidth,h=overlay.clientHeight;
+    const w=plotWidth(),h=overlay.clientHeight;
     if (![x,y].every(Number.isFinite)||x < -10 || x > w+10 || y < -12 || y > h+12) return;
     const up=event.direction==='+';
     const txt=event.label;
@@ -517,7 +595,7 @@ export function mountICTResearchViewer({chart, candles} = {}) {
     ctx.fillStyle=ctx.strokeStyle;ctx.fillText(txt,px+4,py+10);
   }
   function drawMacro(ctx, marker, labelTimeAllowed=true) {
-    const x=getX(marker.time),w=overlay.clientWidth,h=overlay.clientHeight;
+    const x=getX(marker.time),w=plotWidth(),h=overlay.clientHeight;
     if(!Number.isFinite(x)||x < -2||x > w+2) return;
     ctx.save();
     ctx.strokeStyle='rgba(172,149,222,.58)';
@@ -538,7 +616,7 @@ export function mountICTResearchViewer({chart, candles} = {}) {
   }
   function drawSwing(ctx, item) {
     const x=getX(item.time),y=candles.priceToCoordinate(item.price);
-    if (![x,y].every(Number.isFinite) || x<4 || x>overlay.clientWidth-4 || y<12 || y>overlay.clientHeight-12) return;
+    if (![x,y].every(Number.isFinite) || x<4 || x>plotWidth()-4 || y<12 || y>overlay.clientHeight-12) return;
     const up=item.type==='low';
     ctx.fillStyle=up?'#40d1a7':'#f78a8a';
     ctx.beginPath();
@@ -605,6 +683,9 @@ export function mountICTResearchViewer({chart, candles} = {}) {
     }
     const ctx=overlay.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
     if(!dataset)return;
+    const paneW=plotWidth(),paneH=Math.max(0,h-chart.timeScale().height());
+    if(paneW<1||paneH<1)return;
+    ctx.save();ctx.beginPath();ctx.rect(0,0,paneW,paneH);ctx.clip();
     if(macroResult && macroCheck.checked) {
       let lastLabelX=-Infinity;
       for(const marker of macroResult.markers) {
@@ -645,6 +726,7 @@ export function mountICTResearchViewer({chart, candles} = {}) {
     if(structureResult && swingCheck.checked) {
       for (const point of structureResult.swings.slice(-25)) drawSwing(ctx,point);
     }
+    ctx.restore();
   }
   function queueDraw(){if(raf)cancelAnimationFrame(raf);raf=requestAnimationFrame(redraw)}
   function applyBars(bars, meta) {
@@ -814,14 +896,15 @@ export function mountICTResearchViewer({chart, candles} = {}) {
     message.className='ict-research-message warn';
     message.textContent='Chart cleared. Click Refresh market candles to reconnect, or import a matching CSV.';
   });
-  [obCheck,fvgCheck,htfCheck,dolCheck,minorCheck,structureCheck,macroCheck,swingCheck].forEach(i=>i.addEventListener('change',()=>{updateFilterCount();queueDraw();}));
-  [obSwingCheck,obAtrCheck,obSessionCheck,obHHLLCheck,obStructureCheck,fvgRecentCheck,fvgMinorCheck,fvgSessionCheck,htfIRFilterCheck].forEach(i=>i.addEventListener('change',()=>{updateFilterCount();recalculateZones();}));
-  [fvgDisplacementInput,fvgWideGapInput].forEach(i=>i.addEventListener('change',recalculateZones));
-  labelModeButton.addEventListener('click',()=>{recentStructuresOnly=!recentStructuresOnly;labelModeButton.textContent=recentStructuresOnly?'Structure: last 8':'Structure: all labels';queueDraw();});
+  [obCheck,fvgCheck,htfCheck,dolCheck,minorCheck,structureCheck,macroCheck,swingCheck].forEach(i=>i.addEventListener('change',()=>{updateFilterCount();queueDraw();saveChartSettings();}));
+  [obSwingCheck,obAtrCheck,obSessionCheck,obHHLLCheck,obStructureCheck,fvgRecentCheck,fvgMinorCheck,fvgSessionCheck,htfIRFilterCheck].forEach(i=>i.addEventListener('change',()=>{updateFilterCount();recalculateZones();saveChartSettings();}));
+  [fvgDisplacementInput,fvgWideGapInput].forEach(i=>i.addEventListener('change',()=>{recalculateZones();saveChartSettings();}));
+  labelModeButton.addEventListener('click',()=>{recentStructuresOnly=!recentStructuresOnly;labelModeButton.textContent=recentStructuresOnly?'Structure: last 8':'Structure: all labels';queueDraw();saveChartSettings();});
   filterButton.addEventListener('click',()=>{
     zonesNearby = !zonesNearby;
     filterButton.textContent=zonesNearby?(selectedMarket==='BTCUSD'?'Zones: nearby 2.5%':'Zones: nearby $140'):'Zones: all history';
     queueDraw();
+    saveChartSettings();
   });
   latestButton.addEventListener('click',()=>{historyMode=false;historyButton.textContent='↶ History view';focusLatest();});
   historyButton.addEventListener('click',()=>{
@@ -893,6 +976,7 @@ export function mountICTResearchViewer({chart, candles} = {}) {
     autoCheck.checked=true;
     clearDataset();
     updateMarketUI();
+    saveChartSettings();
     refreshProvider();
   });
   providerButton.addEventListener('click',()=>{autoCheck.checked=true;refreshProvider();});
