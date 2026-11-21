@@ -289,3 +289,53 @@ body.gongola-elite.g-shell-v14 .g-shell-status .gongola-elite-feed-status.expand
   overflow: visible !important;
   overflow-wrap: anywhere;
 }
+
+/* v1.4.1 — fit the complete trading workspace inside the physical phone width.
+   The market selector and chart price scale remain visible. Only the duplicate
+   market name / price header is hidden, never removed from update handlers. */
+body.gongola-elite.g-shell-v14 {
+  overflow-x: clip;
+}
+body.gongola-elite.g-shell-v14 #app,
+body.gongola-elite.g-shell-v14 .topbar,
+body.gongola-elite.g-shell-v14 .gongola-elite-toolbar,
+body.gongola-elite.g-shell-v14 .g-shell-status,
+body.gongola-elite.g-shell-v14 .terminal,
+body.gongola-elite.g-shell-v14 .g-shell-chart-panel,
+body.gongola-elite.g-shell-v14 #chart-wrapper,
+body.gongola-elite.g-shell-v14 #chart,
+body.gongola-elite.g-shell-v14 .g-shell-stats {
+  box-sizing: border-box;
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+body.gongola-elite.g-shell-v14 #app,
+body.gongola-elite.g-shell-v14 .topbar,
+body.gongola-elite.g-shell-v14 .gongola-elite-toolbar,
+body.gongola-elite.g-shell-v14 .g-shell-status,
+body.gongola-elite.g-shell-v14 .terminal,
+body.gongola-elite.g-shell-v14 #chart-wrapper,
+body.gongola-elite.g-shell-v14 #chart {
+  width: 100% !important;
+}
+body.gongola-elite.g-shell-v14 .topbar {
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+}
+body.gongola-elite.g-shell-v14 .topbar > a {
+  flex: 0 0 auto;
+}
+body.gongola-elite.g-shell-v14 .topbar .gongola-account-wrap {
+  margin-left: auto;
+}
+body.gongola-elite.g-shell-v14 .market-header.g-shell-quote {
+  display: none !important;
+}
+body.gongola-elite.g-shell-v14 .g-shell-chart-panel,
+body.gongola-elite.g-shell-v14 #chart-wrapper {
+  overflow: hidden;
+}
+@media (max-width: 380px) {
+  body.gongola-elite.g-shell-v14 .topbar { gap: 6px; padding-inline: 7px; }
+  body.gongola-elite.g-shell-v14 .topbar > a { font-size: 9px !important; letter-spacing: 0 !important; }
+}

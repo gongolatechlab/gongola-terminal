@@ -40,8 +40,12 @@ export function mountTerminalShell({
   header.after(toolbar);
   const brand = header.querySelector('.brand');
   if (brand) brand.setAttribute('aria-label','Gongola Terminal');
-  header.append(marketHeader);
+  // The market picker already identifies the active pair. Keep quote nodes in
+  // the DOM for their existing live-update handlers, but don't occupy the topbar
+  // or create horizontal overflow on narrow phones.
   marketHeader.classList.add('g-shell-quote');
+  marketHeader.hidden = true;
+  marketHeader.setAttribute('aria-hidden', 'true');
   const symbol = marketHeader.querySelector('#market-symbol');
   if (symbol) {
     symbol.title = 'Select a market from the toolbar';
