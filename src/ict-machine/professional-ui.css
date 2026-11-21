@@ -1,0 +1,188 @@
+/* Gongola 1.3.1 — editorial/institutional presentation. No trading logic. */
+body.gongola-elite {
+  --g-bg: #090d12;
+  --g-panel: #0d141c;
+  --g-raise: #131e29;
+  --g-border: #23303b;
+  --g-text: #edf1f4;
+  --g-muted: #8998a6;
+  --g-gold: #bba378;
+  --g-up: #49c49b;
+  --g-down: #e67e83;
+  background: #090d12;
+  color: var(--g-text);
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+}
+body.gongola-elite button, body.gongola-elite select {font-family:inherit}
+body.gongola-elite button:focus-visible, body.gongola-elite select:focus-visible,
+body.gongola-elite summary:focus-visible {outline:2px solid #bba378;outline-offset:2px}
+body.gongola-elite .topbar {background:#0c1118;border-bottom:1px solid #202b35;box-shadow:none}
+body.gongola-elite .brand-mark {background:transparent;border:1px solid #68583e;border-radius:5px;color:#d4bd92}
+body.gongola-elite .brand strong {letter-spacing:1.65px;color:#f3f3f0;font-weight:730}
+body.gongola-elite .brand span {color:#8d99a6}
+body.gongola-elite .system-status {color:#93a4af;letter-spacing:0;font-size:9px}
+body.gongola-elite .status-dot {width:6px;height:6px;box-shadow:none;background:#35bd91}
+body.gongola-elite .terminal {max-width:1550px}
+body.gongola-elite .market-header {border:0}
+body.gongola-elite .market-header h1 {font-weight:690;letter-spacing:-.6px}
+body.gongola-elite .price-block .price {font-weight:660;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
+body.gongola-elite .fixed-tf {border-radius:4px;color:#d6c6a6;background:#191913;border-color:#514735}
+body.gongola-elite .gongola-elite-toolbar {
+  background:transparent; border:0; border-top:1px solid #22303b;
+  border-bottom:1px solid #22303b; border-radius:0; padding:7px 0;
+}
+body.gongola-elite .ict-market-row select,body.gongola-elite .gongola-elite-mobile-preset {
+  background:#131d27;color:#e7ecf0;border:1px solid #2c3c49;border-radius:5px;
+  box-shadow:none;font-weight:570;
+}
+body.gongola-elite .gongola-elite-toolbar button,
+body.gongola-elite .gongola-elite-toolbar .gongola-elite-refresh {
+  background:#16202a; border:1px solid #2a3947; color:#cbd5de;
+  border-radius:5px;box-shadow:none;
+}
+body.gongola-elite .gongola-elite-toolbar button:hover,
+body.gongola-elite .gongola-elite-settings>summary:hover {background:#1b2a34;border-color:#526372}
+body.gongola-elite .gongola-elite-settings>summary {
+  border-radius:5px;background:#16212c;border-color:#2c3c49;color:#cfdae2;
+}
+body.gongola-elite .gongola-elite-settings[open]>summary {border-color:#bba378;background:#25251f}
+body.gongola-elite .gongola-elite-preset.selected {background:#2a2821;border-color:#85724f;box-shadow:none;color:#e6d3ac}
+body.gongola-elite .gongola-elite-presets button {border-radius:4px}
+body.gongola-elite .chart-panel, body.gongola-elite .machine-panel {
+  background:#0c131b;border:1px solid #202d38;border-radius:6px;box-shadow:none;
+}
+body.gongola-elite .chart-panel > .panel-heading,body.gongola-elite .machine-panel > .panel-heading {
+  background:#0f171f;border-bottom:1px solid #22303a;
+  font-size:9px;color:#adbcc7;font-weight:620;letter-spacing:.6px;
+}
+body.gongola-elite .gongola-chart-subtitle {color:#a99a7a}
+body.gongola-elite #research-controls {background:#0e1620}
+body.gongola-elite .gongola-elite-feed-status {border-color:#253440;color:#8395a3}
+body.gongola-elite .gongola-elite-message {font-size:10px}
+body.gongola-elite .chart-wrapper #chart {background:#080e15}
+body.gongola-elite .chart-footnote {background:#0d141c;color:#8797a4;border-color:#23303b}
+body.gongola-elite .gongola-compact-context>summary,
+body.gongola-elite .gongola-ref-switch {background:#111a23;border-color:#283643;border-radius:5px}
+body.gongola-elite .gongola-elite-context .metric {
+  background:#111b25;border:1px solid #263543;border-radius:5px;
+}
+body.gongola-elite .gongola-elite-context .metric strong {color:#e3ecf3}
+body.gongola-elite .gongola-elite-settings-body {background:#0d151e;border-color:#283742;border-radius:6px}
+body.gongola-elite .gongola-elite-settings-body details,
+body.gongola-elite .ict-filter-group {background:#111d27;border-color:#2a3947;border-radius:5px}
+body.gongola-elite .ict-filter-group legend {color:#c4b08b}
+body.gongola-elite footer {font-size:9px;color:#6b8292}
+
+/* Inspector: fixed research workstation, not a long text list. */
+body.gongola-elite .gongola-elite-inspector-backdrop {
+  background:rgba(3,7,11,.78);backdrop-filter:blur(3px);
+  z-index:300;padding:0;align-items:flex-end;
+}
+body.gongola-elite .gongola-elite-inspector {
+  width:min(100%,680px);max-height:min(90dvh,860px);height:auto;
+  border-radius:14px 14px 0 0;border:1px solid #38454d;
+  border-bottom:0;background:#101821;padding:0;
+  box-shadow:0 -15px 70px #0009;
+  overscroll-behavior:contain;
+}
+body.gongola-elite .gongola-elite-inspector:before {
+  content:'';display:block;width:32px;height:3px;background:#3b4b57;
+  border-radius:10px;margin:9px auto 2px;
+}
+body.gongola-elite .gongola-elite-inspector-top {
+  padding:14px 19px;position:sticky;top:0;z-index:1;
+  background:#101821;border-bottom:1px solid #28343d;
+}
+body.gongola-elite .gongola-elite-inspector-top strong {
+  color:#f0f2f2;font-size:15px;letter-spacing:-.2px;font-weight:690;
+}
+body.gongola-elite .gongola-elite-inspector-top button {
+  font-size:11px;border-radius:5px;color:#acbac5;background:#18242e;
+  border-color:#33414b;padding:8px 12px;
+}
+body.gongola-elite .gongola-elite-inspector-values {
+  display:block;border:0;margin:0;padding:14px 17px 20px;max-width:none;
+}
+body.gongola-elite .g-pro-ticket {display:flex;flex-direction:column;gap:12px;min-width:0}
+body.gongola-elite .g-pro-eyebrow {
+  font-size:9px;color:#b3a07e;font-weight:700;letter-spacing:1.1px;
+}
+body.gongola-elite .g-pro-synopsis {display:flex;align-items:center;justify-content:space-between;gap:10px}
+body.gongola-elite .g-pro-subtitle {font-size:15px;font-weight:650;letter-spacing:-.2px;color:#f2f3f3}
+body.gongola-elite .g-pro-side {font-size:10px;border-radius:3px;padding:6px 9px;letter-spacing:.25px;font-weight:760;white-space:nowrap}
+body.gongola-elite .g-pro-side.is-long {color:#61d8ad;background:#15392e;border:1px solid #2e6855}
+body.gongola-elite .g-pro-side.is-short {color:#f49a9d;background:#3a242a;border:1px solid #694048}
+body.gongola-elite .g-pro-side.is-unavailable {color:#cfbd98;background:#342f24;border:1px solid #5b513f}
+body.gongola-elite .g-pro-prices {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+body.gongola-elite .g-pro-pair {min-width:0}
+body.gongola-elite .g-pro-prices .g-pro-pair {
+  background:#141f2a;border:1px solid #2b3b48;border-radius:5px;padding:12px 9px;
+  box-shadow:inset 0 2px 0 #718090;
+}
+body.gongola-elite .g-pro-prices .is-entry {box-shadow:inset 0 2px 0 #c2aa7c}
+body.gongola-elite .g-pro-prices .is-stop {box-shadow:inset 0 2px 0 #d8727c}
+body.gongola-elite .g-pro-prices .is-target {box-shadow:inset 0 2px 0 #48c49b}
+body.gongola-elite .g-pro-pair dt {
+  color:#9aafbd;font-size:9px;font-weight:620;letter-spacing:.4px;
+  line-height:1.35;margin:0 0 8px;
+}
+body.gongola-elite .g-pro-prices dd {
+  margin:0;color:#eaf0f4;font-size:clamp(12px,3.8vw,19px);
+  font-weight:720;letter-spacing:-.4px;white-space:nowrap;
+  font-variant-numeric:tabular-nums;overflow:visible;max-width:none;text-align:left;
+}
+body.gongola-elite .g-pro-prices .is-stop dd{color:#f4b0b1}
+body.gongola-elite .g-pro-prices .is-target dd{color:#88e2bf}
+body.gongola-elite .g-pro-rr {
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:11px 14px;background:#1a211f;border:1px solid #354d41;border-radius:5px;
+}
+body.gongola-elite .g-pro-rr .g-pro-pair {display:flex;align-items:baseline;gap:16px}
+body.gongola-elite .g-pro-rr dt {color:#a4b1a9;font-size:10px;margin:0;white-space:nowrap}
+body.gongola-elite .g-pro-rr dd {font-size:25px;font-weight:750;color:#d5dfcd;font-variant-numeric:tabular-nums;text-align:left;margin:0;max-width:none;letter-spacing:-1px}
+body.gongola-elite .g-pro-rr-note {font-size:9px;color:#879d91;text-align:right}
+body.gongola-elite .g-pro-empty {border:1px dashed #625947;background:#25251e;padding:14px;color:#d4c3a0;font-size:12px;line-height:1.5}
+body.gongola-elite .g-pro-disclosure {border-top:1px solid #293843;padding-top:6px}
+body.gongola-elite .g-pro-disclosure>summary {
+  list-style:none;cursor:pointer;color:#c2d0da;font-size:12px;
+  font-weight:620;padding:8px 4px;
+}
+body.gongola-elite .g-pro-disclosure>summary::after {content:' +';float:right;color:#a8b6c1}
+body.gongola-elite .g-pro-disclosure[open]>summary::after {content:' −'}
+body.gongola-elite .g-pro-disclosure>summary::-webkit-details-marker{display:none}
+body.gongola-elite .g-pro-method-grid {display:grid;grid-template-columns:1fr;gap:0;padding:5px 1px 7px}
+body.gongola-elite .g-pro-method-grid .g-pro-pair {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);align-items:start;gap:12px;padding:9px 2px;border-bottom:1px solid #23313b}
+body.gongola-elite .g-pro-method-grid .g-pro-pair:last-child {border:0}
+body.gongola-elite .g-pro-method-grid dt {color:#899eab;font-size:11px;letter-spacing:0;margin:0}
+body.gongola-elite .g-pro-method-grid dd {margin:0;max-width:none;color:#e0e9ef;font-size:11px;line-height:1.4;text-align:right;overflow-wrap:anywhere}
+body.gongola-elite .g-pro-note {color:#a6bac7;font-size:11px;line-height:1.5;margin:0}
+body.gongola-elite .g-pro-warning {
+  color:#aa9a84;font-size:10px;line-height:1.55;padding:10px 12px;
+  background:#1c1c1b;border-left:2px solid #88704b;
+}
+body.gongola-elite .g-pro-other {display:grid;gap:4px}
+@media(min-width:800px) {
+  body.gongola-elite .gongola-elite-inspector-backdrop {align-items:center;padding:28px}
+  body.gongola-elite .gongola-elite-inspector {border-radius:12px;border-bottom:1px solid #38454d;max-height:85dvh}
+  body.gongola-elite .gongola-elite-inspector:before {display:none}
+}
+@media(max-width:760px) {
+  body.gongola-elite .terminal {padding:4px 7px 24px}
+  body.gongola-elite .market-header {padding:7px 2px}
+  body.gongola-elite .market-header h1 {font-size:18px}
+  body.gongola-elite .price-block .price {font-size:19px}
+  body.gongola-elite .gongola-elite-toolbar {margin:1px 0 4px;padding:5px 1px}
+  body.gongola-elite .gongola-elite-toolbar .gongola-elite-commands button {width:34px;min-width:34px;flex:0 0 34px;height:34px;padding:0}
+  body.gongola-elite .chart-panel> .panel-heading {min-height:32px;padding:7px 10px}
+  body.gongola-elite .chart-wrapper #chart {height:clamp(430px,78dvh,850px)}
+  body.gongola-elite .gongola-elite-inspector {max-height:89dvh}
+  body.gongola-elite .gongola-elite-inspector-top {padding:13px 15px}
+  body.gongola-elite .gongola-elite-inspector-values {padding:13px 12px 24px}
+}
+@media(max-width:370px) {
+  body.gongola-elite .g-pro-prices {gap:4px}
+  body.gongola-elite .g-pro-prices .g-pro-pair {padding:10px 6px}
+  body.gongola-elite .g-pro-prices dd {font-size:12px}
+  body.gongola-elite .g-pro-rr-note {display:none}
+}
+@media(prefers-reduced-motion:reduce){body.gongola-elite *{transition:none!important;animation:none!important}}

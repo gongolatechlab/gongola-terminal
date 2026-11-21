@@ -1,0 +1,53 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "rewrites": [
+    {
+      "source": "/__gongola/market/candles",
+      "destination": "/api/candles"
+    },
+    {
+      "source": "/gongola-terminal/__gongola/market/candles",
+      "destination": "/api/candles"
+    },
+    {
+      "source": "/terminal",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/terminal/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/intelligence",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/intelligence/",
+      "destination": "/index.html"
+    }
+  ],
+  "functions": {
+    "api/macro-scheduled.mjs": {
+      "experimentalTriggers": [
+        {
+          "type": "schedule/v1beta"
+        }
+      ]
+    }
+  },
+  "schedules": {
+    "gongola-london": {
+      "schedule": "30 2 * * 1-5",
+      "function": "api/macro-scheduled.mjs",
+      "timezone": "America/New_York"
+    },
+    "gongola-newyork": {
+      "schedule": "0 9 * * 1-5",
+      "function": "api/macro-scheduled.mjs",
+      "timezone": "America/New_York"
+    }
+  }
+}

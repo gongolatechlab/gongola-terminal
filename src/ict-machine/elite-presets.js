@@ -1,9 +1,9 @@
 /** Visibility-only ICT chart presets. NEVER change engine calculation filters. */
-export const LAYER_KEYS = Object.freeze(['ob', 'fvg', 'dol', 'minor', 'structure', 'macro', 'swing']);
+export const LAYER_KEYS = Object.freeze(['ob', 'fvg', 'htf', 'dol', 'minor', 'structure', 'macro', 'swing']);
 export const PRESETS = Object.freeze({
   clean: Object.freeze([]),
   structure: Object.freeze(['ob', 'minor', 'structure']),
-  liquidity: Object.freeze(['fvg', 'dol', 'minor']),
+  liquidity: Object.freeze(['fvg', 'htf', 'dol', 'minor']),
   full: Object.freeze([...LAYER_KEYS]),
 });
 

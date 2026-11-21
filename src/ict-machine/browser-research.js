@@ -10,7 +10,12 @@ import { mountWorkspaceLayout } from './workspace-layout.js';
 import { calculateMinorDOL } from './minor-dol.js';
 import { calculateICTMacros, MACRO_TIMES_NY } from './ict-macros.js';
 import { aggregate5mTo15m } from './chart-timeframes.js';
+import {makeOBSessionEligibility,buildOBMinorContext} from './ob-filter-context.js';
+import {makeFVGMinorDirectionAt, normalizeFVGFilterSettings} from './fvg-filter-context.js';
 import { mountEliteWorkspace } from './elite-workspace.js';
+import { buildResearchTradePlan } from './trade-plan.js';
+import { archivedOrderBlocks, archivedFairValueGaps, zoneNearPrice } from './zone-history.js';
+import { replay15mHTFFVGOn5m } from './htf-fvg.js';
 
 const FIFTEEN = 15 * 60_000;
 const FIVE = 5 * 60_000;
@@ -96,13 +101,24 @@ export function parse15mOHLC(text, { asOfMs = Date.now(), timeframeMinutes = 15 
 
 /** Source-derived historical subset using the user's previously supplied preset. */
 export function calculateResearchZones(bars, { swingFilter = true, atrFilter = true,
-    recentOB = true, timeframeMinutes = 15 } = {}) {
+    recentOB = true, timeframeMinutes = 15, obSessionFilter = false,
+    obHHLLFilter = false, obStructureFilter = false,
+    fvgMinorFilter = false, fvgSessionFilter = false,
+    fvgDisplacement = 0.5, fvgWideGap = 18 } = {}) {
   if (![5,15].includes(timeframeMinutes)) throw new Error('Unsupported chart timeframe.');
   const chartMs = timeframeMinutes * 60_000;
+  const fvgSettings = normalizeFVGFilterSettings({
+    fvgMinorFilter, fvgSessionFilter, fvgDisplacement, fvgWideGap
+  });
   // For 5M, the active preset's 15M OB detection/lock uses only full groups
   // of three real, contiguous, closed 5M candles. Never fill missing bars.
   const detectionBars = timeframeMinutes === 5 ? aggregate5mTo15m(bars)
     : bars.map(b => ({ ...b, end:b.time + FIFTEEN }));
+  // Source-derived OB confirmation context; disabled filters preserve v0.8 output.
+  // NY session timezone and UTC 4H boundaries are explicitly provisional.
+  const sessionValid=makeOBSessionEligibility({enabled:obSessionFilter,exchangeTimezone:'America/New_York'});
+  const extraContext=buildOBMinorContext(bars,{timeframeMinutes,
+    hhllFilter:obHHLLFilter,structFilter:obStructureFilter});
   return replayOBToFVGLifecycle(bars, detectionBars, {
     chartTfMs: chartMs,
     detectTfMs: FIFTEEN,
@@ -114,32 +130,39 @@ export function calculateResearchZones(bars, { swingFilter = true, atrFilter = t
     swingLookback: 1,
     swingLookforward: 1,
     atrLength: 20,
+    sessionValid, extraContext,
     config: {
       showOB: true,
       maxCount: 70,
       atrFilter,
       atrMultiplier: 3,
       swingFilter,
-      hhllFilter: false,
-      structFilter: false,
-      sessionFilter: false,
+      hhllFilter: obHHLLFilter,
+      structFilter: obStructureFilter,
+      sessionFilter: obSessionFilter,
       extend: true,
     }
   }, {
     chartTfMinutes: timeframeMinutes,
     showFVG: true,
     volatilityPeriod: 100,
-    displacementMultiplier: 0.5,
+    displacementMultiplier: fvgSettings.fvgDisplacement,
+    wideGap: fvgSettings.fvgWideGap,
     recentOB,
-    signalFilter: false,
-    minorDOL: false,
+    signalFilter: false, // Full V0.99 session bias & trading branch not yet implemented.
+    minorDOL: fvgSettings.fvgMinorFilter,
+    // Pine's Minor DOL engine is below regular FVG: only prior CLOSED bar's
+    // direction may qualify the current FVG. This includes + / - TS.
+    minorDirectionAt: fvgSettings.fvgMinorFilter
+      ? makeFVGMinorDirectionAt(bars,{timeframeMinutes})
+      : ()=>null,
     sessionConfig: {
       // Inspection assumption: user can confirm the exchange session timezone.
       exchangeTimezone: 'America/New_York',
       useAsia: true,
       useLondon: true,
       useNY: true,
-      fvgSessionFilter: false,
+      fvgSessionFilter: fvgSettings.fvgSessionFilter,
     },
   }, {
     maxFVGAge: 20,
@@ -232,6 +255,10 @@ export function mountICTResearchViewer({chart, candles} = {}) {
   const fvgLabel = elt('label', 'ict-check');
   const fvgCheck = elt('input'); fvgCheck.type='checkbox'; fvgCheck.checked=true;
   fvgLabel.append(fvgCheck, document.createTextNode('FVG'));
+  const htfLabel=elt('label','ict-check');
+  const htfCheck=elt('input');htfCheck.type='checkbox';htfCheck.checked=true;
+  htfLabel.append(htfCheck,document.createTextNode('15M HTF FVG / IFVG · on 5M'));
+  htfCheck.title='Confirmed 15M imbalance zones projected on 5M. Separate from regular 5M FVGs.';
   const dolLabel = elt('label', 'ict-check');
   const dolCheck = elt('input'); dolCheck.type = 'checkbox'; dolCheck.checked = true;
   dolLabel.append(dolCheck, document.createTextNode('Prior-day BSL/SSL'));
@@ -246,6 +273,7 @@ export function mountICTResearchViewer({chart, candles} = {}) {
   const macroCheck=elt('input');macroCheck.type='checkbox';macroCheck.checked=true;
   macroLabel.append(macroCheck,document.createTextNode('ICT Macros · NY'));
   const macroSummary=elt('div','gongola-macro-summary','ICT Macros: awaiting completed market candles.');
+  const htfSummary=elt('div','gongola-htf-summary','15M HTF FVG: select 5M and load completed candles.');
   const labelModeButton=elt('button','','Structure: last 8');
   labelModeButton.title='Switch between the latest eight BOS/MSS/TS annotations and all retained annotations.';
   const swingLabel = elt('label', 'ict-check');
@@ -257,12 +285,44 @@ export function mountICTResearchViewer({chart, candles} = {}) {
   const obAtrLabel=elt('label','ict-check');
   const obAtrCheck=elt('input'); obAtrCheck.type='checkbox'; obAtrCheck.checked=true;
   obAtrLabel.append(obAtrCheck,document.createTextNode('OB · ATR size filter (20 × 3)'));
+  const obSessionLabel=elt('label','ict-check');
+  const obSessionCheck=elt('input'); obSessionCheck.type='checkbox'; obSessionCheck.checked=false;
+  obSessionLabel.append(obSessionCheck,document.createTextNode('OB · Session (NY timezone assumed)'));
+  const obHHLLLabel=elt('label','ict-check');
+  const obHHLLCheck=elt('input'); obHHLLCheck.type='checkbox'; obHHLLCheck.checked=false;
+  obHHLLLabel.append(obHHLLCheck,document.createTextNode('OB · Minor DOL HH/LL'));
+  const obStructureLabel=elt('label','ict-check');
+  const obStructureCheck=elt('input'); obStructureCheck.type='checkbox'; obStructureCheck.checked=false;
+  obStructureLabel.append(obStructureCheck,document.createTextNode('OB · Recent Minor DOL structure'));
   const fvgRecentLabel=elt('label','ict-check');
   const fvgRecentCheck=elt('input'); fvgRecentCheck.type='checkbox'; fvgRecentCheck.checked=true;
   fvgRecentLabel.append(fvgRecentCheck,document.createTextNode('FVG · matching recent OB direction'));
+  const fvgMinorLabel=elt('label','ict-check');
+  const fvgMinorCheck=elt('input');fvgMinorCheck.type='checkbox';fvgMinorCheck.checked=false;
+  fvgMinorLabel.append(fvgMinorCheck,document.createTextNode('FVG · Minor DOL direction (BOS/MSS/TS)'));
+  const htfIRFilterLabel=elt('label','ict-check');
+  const htfIRFilterCheck=elt('input');htfIRFilterCheck.type='checkbox';htfIRFilterCheck.checked=false;
+  htfIRFilterLabel.append(htfIRFilterCheck,document.createTextNode('15M HTF FVG · require recent 60M HTF IR direction'));
+  htfIRFilterLabel.title='Optional V0.99 source-derived filter. Builds only confirmed 60M IR from complete 5M candles; OFF matches current preset.';
+  const fvgSessionLabel=elt('label','ict-check');
+  const fvgSessionCheck=elt('input');fvgSessionCheck.type='checkbox';fvgSessionCheck.checked=false;
+  fvgSessionLabel.append(fvgSessionCheck,document.createTextNode('FVG · session: any of 3 candles'));
+  function numberSetting(label,value,min,max,step){
+    const wrap=elt('label','ict-check');
+    wrap.append(document.createTextNode(label));
+    const input=elt('input');input.type='number';input.min=String(min);input.max=String(max);
+    input.step=String(step);input.value=String(value);
+    input.style.cssText='width:66px;min-width:0;margin-left:auto;padding:4px;border:1px solid #496079;background:#0b1826;color:#e4f3ff;border-radius:4px';
+    wrap.append(input);
+    return input;
+  }
+  const fvgDisplacementInput=numberSetting('FVG · Displacement',0.5,0.01,10,0.01);
+  const fvgWideGapInput=numberSetting('FVG · Ignore large gap',18,1,1000,0.1);
   const filterButton = elt('button', '', 'Zones: nearby $140');
-  filterButton.title = 'Show research zones near the last closed price, or show all historical zones.';
+  filterButton.title = 'Show zones near the visible chart price, or all retained zones. Historical removed drawings are a separate option.';
   const latestButton = elt('button', '', '◉ Latest 170 bars');
+  const historyButton = elt('button', '', '↶ History view');
+  historyButton.title = 'Browse roughly 500 earlier bars and inspect faint, archived zones that the engine removed. Archived zones are NOT active signals.';
   const reset = elt('button', '', 'Clear imported chart'); reset.disabled = true;
   const message = elt('div','ict-research-message warn', 'Checking local market-feed connection… You can still load your historical CSV.');
   const importLabel = elt('label', '', 'OR IMPORT CSV:');
@@ -273,10 +333,13 @@ export function mountICTResearchViewer({chart, candles} = {}) {
   const filterCount=elt('span','ict-filter-count');filterHeader.append(filterCount);
   const filterGrid=elt('div','ict-filter-grid');
   const layerGroup=elt('fieldset','ict-filter-group');
-  layerGroup.append(elt('legend','', 'Chart layers (display only)'),obLabel,fvgLabel,dolLabel,minorLabel,structureLabel,macroLabel,swingLabel,filterButton,labelModeButton);
+  layerGroup.append(elt('legend','', 'Chart layers (display only)'),obLabel,fvgLabel,htfLabel,dolLabel,minorLabel,structureLabel,macroLabel,swingLabel,filterButton,historyButton,labelModeButton);
   const computeGroup=elt('fieldset','ict-filter-group');
-  computeGroup.append(elt('legend','', 'Detection filters (recalculate)'),obSwingLabel,obAtrLabel,fvgRecentLabel,
-    elt('div','ict-filter-note','These three existing V0.99-subset filters change historical OB/FVG calculations. Other source filters are not yet implemented; these are research results, not trade signals.'));
+  computeGroup.append(elt('legend','', 'Detection filters (recalculate)'),
+    obSwingLabel,obAtrLabel,obSessionLabel,obHHLLLabel,obStructureLabel,
+    fvgRecentLabel,fvgMinorLabel,fvgSessionLabel,htfIRFilterLabel,fvgDisplacementInput.parentElement,
+    fvgWideGapInput.parentElement,
+    elt('div','ict-filter-note','FVG Minor DOL and 3-candle session filters default OFF. With both Minor DOL and recent OB filters ON, both directions must match. Session membership uses assumed NY exchange timezone; 4H Minor DOL and 60M HTF IR boundaries are provisional UTC. HTF IR direction filter defaults OFF. Full Signal Filter/trade engine not enabled.'));
   filterGrid.append(layerGroup,computeGroup);
   filterPanel.append(filterHeader,filterGrid);
   const importPanel=elt('details','ict-import-panel');
@@ -285,17 +348,17 @@ export function mountICTResearchViewer({chart, candles} = {}) {
   importPanel.append(importHead,importBody);
   const detailPanel=elt('details','ict-analysis-panel');
   const detailHead=elt('summary','', 'Market source & analysis details');
-  const detailBody=elt('div','ict-detail-content');detailBody.append(sourceLabel,minorSummary,macroSummary);
+  const detailBody=elt('div','ict-detail-content');detailBody.append(sourceLabel,minorSummary,macroSummary,htfSummary);
   detailPanel.append(detailHead,detailBody);
   tools.append(primaryRow,message,filterPanel,importPanel,detailPanel);
   function updateFilterCount(){
-    const visual=[obCheck,fvgCheck,dolCheck,minorCheck,structureCheck,macroCheck,swingCheck].filter(x=>x.checked).length;
-    const calculated=[obSwingCheck,obAtrCheck,fvgRecentCheck].filter(x=>x.checked).length;
-    filterCount.textContent=`${visual}/7 layers · ${calculated}/3 detection filters`;
+    const visual=[obCheck,fvgCheck,htfCheck,dolCheck,minorCheck,structureCheck,macroCheck,swingCheck].filter(x=>x.checked).length;
+    const calculated=[obSwingCheck,obAtrCheck,obSessionCheck,obHHLLCheck,obStructureCheck,fvgRecentCheck,fvgMinorCheck,fvgSessionCheck,htfIRFilterCheck].filter(x=>x.checked).length;
+    filterCount.textContent=`${visual}/8 layers · ${calculated}/9 detection switches`;
   }
   updateFilterCount();
   const legend=elt('div','ict-research-legend');
-  for (const [label,color] of [['Bearish OB','#ef5350'],['Bullish OB','#4589ff'],['Bearish FVG','#949fae'],['Bullish FVG','#19bf89'],['BSL · prior high','#50a6ff'],['SSL · prior low','#ff7a7a'],['4H Minor BSL','#40cfd8'],['4H Minor SSL','#f0a657'],['BOS/MSS close','#baa1ff'],['NY ICT Macro','#ad94df']]) {
+  for (const [label,color] of [['Bearish OB','#ef5350'],['Bullish OB','#4589ff'],['Bearish FVG','#949fae'],['Bullish FVG','#19bf89'],['15M HTF FVG','#72aaff'],['15M inverse FVG','#e4aa70'],['BSL · prior high','#50a6ff'],['SSL · prior low','#ff7a7a'],['4H Minor BSL','#40cfd8'],['4H Minor SSL','#f0a657'],['BOS/MSS close','#baa1ff'],['NY ICT Macro','#ad94df']]) {
     const s=elt('span','',label);s.style.setProperty('--swatch',color);legend.append(s);
   }
   const legendPanel=elt('details','ict-legend-panel');
@@ -308,9 +371,25 @@ export function mountICTResearchViewer({chart, candles} = {}) {
   const overlay=elt('canvas'); overlay.setAttribute('aria-hidden','true');
   Object.assign(overlay.style,{position:'absolute',inset:'0',width:'100%',height:'100%',pointerEvents:'none',zIndex:'4'});
   host.append(overlay);
-  let dataset=null, engineResult=null, structureResult=null, minorResult=null, macroResult=null, raf=0, resizeObserver, activeSource='none', zonesNearby=true, recentStructuresOnly=true, currentMeta=null;
+  let dataset=null, engineResult=null, structureResult=null, minorResult=null, macroResult=null, htfResult=null, raf=0, resizeObserver, activeSource='none', zonesNearby=true, recentStructuresOnly=true, currentMeta=null;
+  let historyMode=false, removedOBs=[], removedFVGs=[];
   let selectedMarket='XAUUSD', selectedTimeframe=15, requestVersion=0, activeRequest=null;
   let eliteUI = null;
+  let researchPriceLines=[];
+  function clearResearchPriceLines(){
+    for(const line of researchPriceLines)try{candles.removePriceLine(line);}catch{}
+    researchPriceLines=[];
+  }
+  function showResearchPriceLines(plan){
+    clearResearchPriceLines();
+    if(!plan || plan.status==='unavailable')return;
+    for(const [price,title,color] of [
+      [plan.entry,'ENTRY','#d8bd82'],[plan.stop,'SL','#e88282'],[plan.target,'TP','#64c7a7']]){
+      if(!Number.isFinite(price))continue;
+      researchPriceLines.push(candles.createPriceLine({price,title,color,lineWidth:1,lineStyle:2,
+        axisLabelVisible:true,priceLineVisible:true}));
+    }
+  }
 
   function getX(ms) {
     if(!dataset) return null;
@@ -325,12 +404,17 @@ export function mountICTResearchViewer({chart, candles} = {}) {
     return chart.timeScale().logicalToCoordinate(logical);
   }
 
-  function drawZone(ctx, bounds, type, inverse=false) {
+  function visibleReferencePrice() {
+    const center = candles.coordinateToPrice(host.clientHeight / 2);
+    return Number.isFinite(center) ? center : dataset?.bars.at(-1)?.close;
+  }
+
+  function drawZone(ctx, bounds, type, inverse=false, archived=false) {
     if (![bounds.left,bounds.right,bounds.top,bounds.bottom].every(Number.isFinite)) return;
     if (zonesNearby && dataset) {
-      const price = dataset.bars.at(-1).close;
+      const price = visibleReferencePrice();
       const radius=selectedMarket==='BTCUSD'?Math.max(500,price*0.025):140;
-      if (bounds.top < price - radius || bounds.bottom > price + radius) return;
+      if (!zoneNearPrice(bounds,price,radius)) return;
     }
     const x1=getX(bounds.left),x2=getX(bounds.right);
     const y1=candles.priceToCoordinate(bounds.top),y2=candles.priceToCoordinate(bounds.bottom);
@@ -341,10 +425,45 @@ export function mountICTResearchViewer({chart, candles} = {}) {
     if(end<=start||bottom<=top)return;
     const colors={bearOB:['rgba(239,83,80,.20)','#ef5350'],bullOB:['rgba(69,137,255,.18)','#4589ff'],bearFVG:['rgba(148,159,174,.23)','#949fae'],bullFVG:['rgba(25,191,137,.20)','#19bf89'],inverse:['rgba(202,135,224,.18)','#bd87de']};
     const [fill,stroke]=colors[inverse?'inverse':type];
+    ctx.save();
+    ctx.globalAlpha=archived?0.3:1;
     ctx.fillStyle=fill; ctx.fillRect(start,top,end-start,bottom-top);
-    ctx.strokeStyle=stroke;ctx.lineWidth=1;ctx.setLineDash(inverse?[4,3]:[]);
+    ctx.strokeStyle=stroke;ctx.lineWidth=1;ctx.setLineDash(archived?[2,4]:inverse?[4,3]:[]);
     ctx.strokeRect(start+.5,top+.5,Math.max(0,end-start-1),Math.max(0,bottom-top-1));
+    ctx.restore();
+  }
+
+  // Distinct 15M HTF box styling; regular 5M FVGs keep their own colors.
+  function drawHTFZone(ctx, zone, archived=false) {
+    if (!dataset || selectedTimeframe!==5 || !htfCheck.checked) return;
+    const right=dataset.bars.at(-1).time + 40 * FIVE;
+    const bounds={left:zone.left,right,top:zone.top,bottom:zone.bottom};
+    if (zonesNearby) {
+      const price=visibleReferencePrice(), radius=selectedMarket==='BTCUSD'?Math.max(500,price*.025):140;
+      if(!zoneNearPrice(bounds,price,radius))return;
+    }
+    const x1=getX(bounds.left),x2=getX(bounds.right);
+    const y1=candles.priceToCoordinate(bounds.top),y2=candles.priceToCoordinate(bounds.bottom);
+    if(![x1,x2,y1,y2].every(Number.isFinite))return;
+    const left=Math.max(0,Math.min(x1,x2)), rightX=Math.min(overlay.clientWidth,Math.max(x1,x2));
+    const top=Math.max(0,Math.min(y1,y2)),bottom=Math.min(overlay.clientHeight,Math.max(y1,y2));
+    if(rightX<=left || bottom<=top)return;
+    const inverse=zone.status.startsWith('inverse_');
+    const bull=zone.status==='bullish'||zone.status==='inverse_bullish';
+    const stroke=inverse?(bull?'#6ed1a4':'#e5a66c'):(bull?'#70a9ff':'#e47b88');
+    const fill=inverse?(bull?'rgba(90,198,148,.09)':'rgba(229,166,108,.09)')
+      :(bull?'rgba(112,169,255,.11)':'rgba(228,123,136,.11)');
+    ctx.save();
+    ctx.globalAlpha=archived?0.28:1;
+    ctx.fillStyle=fill;ctx.fillRect(left,top,rightX-left,bottom-top);
+    ctx.strokeStyle=stroke;ctx.lineWidth=1.15;ctx.setLineDash(archived?[2,4]:[6,3]);
+    ctx.strokeRect(left+.5,top+.5,Math.max(0,rightX-left-1),Math.max(0,bottom-top-1));
     ctx.setLineDash([]);
+    if(!archived && rightX-left>80 && bottom-top>12 && top<overlay.clientHeight-10) {
+      ctx.font='8px system-ui,sans-serif';ctx.fillStyle=stroke;
+      ctx.fillText(inverse?'15M IFVG':'15M FVG',left+5,Math.max(11,top+11));
+    }
+    ctx.restore();
   }
 
   function drawLiquidityLine(ctx, item) {
@@ -361,7 +480,7 @@ export function mountICTResearchViewer({chart, candles} = {}) {
     ctx.beginPath();ctx.moveTo(from,y+.5);ctx.lineTo(to,y+.5);ctx.stroke();ctx.setLineDash([]);
     if (!item.mitigated && to > 70 && from < w) {
       const label=`${item.type} ${item.price.toFixed(2)}`;
-      ctx.font='10px system-ui,sans-serif';
+      ctx.font='8px system-ui,sans-serif';
       ctx.fillStyle=color;
       ctx.fillText(label,Math.max(2,Math.min(w-ctx.measureText(label).width-3,to+5)),Math.max(12,Math.min(h-4,y-4)));
     }
@@ -378,7 +497,7 @@ export function mountICTResearchViewer({chart, candles} = {}) {
     ctx.beginPath();ctx.moveTo(a,y+.5);ctx.lineTo(z,y+.5);ctx.stroke();ctx.setLineDash([]);
     if (!item.mitigated && z > 80) {
       const label=`4H ${item.type} ${item.price.toFixed(2)}`;
-      ctx.fillStyle=color;ctx.font='10px system-ui,sans-serif';
+      ctx.fillStyle=color;ctx.font='8px system-ui,sans-serif';
       ctx.fillText(label,Math.max(2,Math.min(w-ctx.measureText(label).width-3,z+4)),Math.max(12,Math.min(h-4,y-4)));
     }
   }
@@ -388,14 +507,14 @@ export function mountICTResearchViewer({chart, candles} = {}) {
     if (![x,y].every(Number.isFinite)||x < -10 || x > w+10 || y < -12 || y > h+12) return;
     const up=event.direction==='+';
     const txt=event.label;
-    ctx.font='bold 11px system-ui,sans-serif';
-    const tw=ctx.measureText(txt).width+12;
+    ctx.font='bold 9px system-ui,sans-serif';
+    const tw=ctx.measureText(txt).width+8;
     const px=Math.max(2,Math.min(w-tw-2,x-tw/2));
-    const py=up?Math.min(h-23,y+7):Math.max(3,y-23);
-    ctx.fillStyle='rgba(12,20,30,.94)';ctx.fillRect(px,py,tw,17);
+    const py=up?Math.min(h-18,y+5):Math.max(3,y-18);
+    ctx.fillStyle='rgba(12,20,30,.94)';ctx.fillRect(px,py,tw,14);
     ctx.strokeStyle=event.type==='TS'?'#f4c87c':up?'#50bcff':'#fa8b8b';
-    ctx.strokeRect(px+.5,py+.5,tw-1,16);
-    ctx.fillStyle=ctx.strokeStyle;ctx.fillText(txt,px+6,py+12);
+    ctx.strokeRect(px+.5,py+.5,tw-1,13);
+    ctx.fillStyle=ctx.strokeStyle;ctx.fillText(txt,px+4,py+10);
   }
   function drawMacro(ctx, marker, labelTimeAllowed=true) {
     const x=getX(marker.time),w=overlay.clientWidth,h=overlay.clientHeight;
@@ -407,12 +526,12 @@ export function mountICTResearchViewer({chart, candles} = {}) {
     ctx.setLineDash([]);
     if(labelTimeAllowed) {
       const txt=`${marker.label} NY`;
-      ctx.font='10px system-ui,sans-serif';
+      ctx.font='8px system-ui,sans-serif';
       const width=ctx.measureText(txt).width+8;
       const px=Math.min(Math.max(2,x+3),w-width-2);
       if(px>=0){
-        ctx.fillStyle='rgba(17,21,34,.92)';ctx.fillRect(px,3,width,16);
-        ctx.fillStyle='#c7b7f4';ctx.fillText(txt,px+4,15);
+        ctx.fillStyle='rgba(17,21,34,.92)';ctx.fillRect(px,3,width,13);
+        ctx.fillStyle='#c7b7f4';ctx.fillText(txt,px+4,13);
       }
     }
     ctx.restore();
@@ -437,29 +556,40 @@ export function mountICTResearchViewer({chart, candles} = {}) {
   function inspectZoneAtPoint(point) {
     if (!point || !engineResult || !dataset) return null;
     const hits=[];
-    const latest=dataset.bars.at(-1).close;
+    const latest=visibleReferencePrice();
     const radius=selectedMarket==='BTCUSD'?Math.max(500,latest*0.025):140;
-    const consider=(label,left,right,top,bottom,status) => {
+    const consider=(label,left,right,top,bottom,status,meta={}) => {
       if (![left,right,top,bottom].every(Number.isFinite)) return;
-      if (zonesNearby && (top < latest-radius || bottom > latest+radius)) return;
+      if (zonesNearby && !zoneNearPrice({top,bottom},latest,radius)) return;
       const xa=getX(left),xb=getX(right),ya=candles.priceToCoordinate(top),yb=candles.priceToCoordinate(bottom);
       if (![xa,xb,ya,yb].every(Number.isFinite)) return;
       const x0=Math.min(xa,xb),x1=Math.max(xa,xb),y0=Math.min(ya,yb),y1=Math.max(ya,yb);
       if (point.x < x0-3 || point.x > x1+3 || point.y < y0-3 || point.y > y1+3) return;
-      hits.push({label,top:top.toFixed(2),bottom:bottom.toFixed(2),origin:new Date(left).toISOString(),
-        status,area:Math.max(1,(x1-x0)*(y1-y0))});
+      hits.push({label,top,bottom,origin:new Date(left).toISOString(),
+        status,...meta,area:Math.max(1,(x1-x0)*(y1-y0))});
     };
     if (obCheck.checked) {
-      for (const ob of engineResult.ob.state.bearBoxes || []) consider('Bearish Order Block',ob.leftTime,ob.rightTime,ob.top,ob.bottom,'Displayed in current engine state');
-      for (const ob of engineResult.ob.state.bullBoxes || []) consider('Bullish Order Block',ob.leftTime,ob.rightTime,ob.top,ob.bottom,'Displayed in current engine state');
+      for (const ob of engineResult.ob.state.bearBoxes || []) consider('Bearish Order Block',ob.leftTime,ob.rightTime,ob.top,ob.bottom,'Displayed in current engine state',{category:'ob',direction:'bearish',active:true,formationTimeMs:ob.leftTime});
+      for (const ob of engineResult.ob.state.bullBoxes || []) consider('Bullish Order Block',ob.leftTime,ob.rightTime,ob.top,ob.bottom,'Displayed in current engine state',{category:'ob',direction:'bullish',active:true,formationTimeMs:ob.leftTime});
     }
     if (fvgCheck.checked) {
       for (const fvg of engineResult.lifecycle.drawings || []) {
         if (fvg.deleted) continue;
         const direction=fvg.kind.includes('bear')?'Bearish':'Bullish';
         consider(`${direction} ${fvg.kind.startsWith('inverse')?'Inverse FVG':'FVG'}`,fvg.left,fvg.right,fvg.top,fvg.bottom,
-          'Not deleted in current engine drawing state');
+          'Not deleted in current engine drawing state',{category:'fvg',direction:fvg.kind.toLowerCase().includes('bear')?'bearish':'bullish',
+          active:(engineResult.lifecycle.tracked[fvg.kind]||[]).includes(fvg.id),
+          inverse:fvg.kind.startsWith('inverse'),formationTimeMs:fvg.formationTime});
       }
+    }
+    if (htfCheck.checked && htfResult && selectedTimeframe===5) {
+      const end=dataset.bars.at(-1).time+40*FIVE;
+      for(const z of htfResult.zones) consider(`15M ${z.status.includes('bullish')?'Bullish':'Bearish'} ${z.status.startsWith('inverse_')?'Inverse FVG':'FVG'}`,z.left,end,z.top,z.bottom,`Confirmed 15M; state: ${z.status}`,{category:'htf-fvg',direction:z.direction,active:true,inverse:z.status.startsWith('inverse_'),formationTimeMs:z.left-900000});
+      if(historyMode) for(const z of htfResult.archived) consider('Archived 15M FVG',z.left,end,z.top,z.bottom,`REMOVED (${z.status}) — historical only`,{category:'htf-fvg',direction:z.direction,archived:true,active:false});
+    }
+    if (historyMode) {
+      if (obCheck.checked) for(const d of removedOBs) consider(`${d.direction==='-'?'Bearish':'Bullish'} archived OB`,d.left,d.right,d.top,d.bottom,`REMOVED (${d.reason}) — historical only; not active`,{category:'ob',direction:d.direction==='-'?'bearish':'bullish',archived:true,active:false});
+      if (fvgCheck.checked) for(const d of removedFVGs) consider(`Archived ${d.kind} FVG`,d.left,d.right,d.top,d.bottom,'REMOVED — historical only; not active',{category:'fvg',archived:true,active:false});
     }
     if (!hits.length) return null;
     hits.sort((a,b)=>a.area-b.area);
@@ -483,6 +613,14 @@ export function mountICTResearchViewer({chart, candles} = {}) {
         if(showLabel) lastLabelX=x;
         drawMacro(ctx,marker,showLabel);
       }
+    }
+    if(htfCheck.checked && htfResult && selectedTimeframe===5) {
+      if(historyMode) for(const z of htfResult.archived) drawHTFZone(ctx,z,true);
+      for(const z of htfResult.zones) drawHTFZone(ctx,z);
+    }
+    if(historyMode) {
+      if(obCheck.checked) for(const d of removedOBs) drawZone(ctx,{left:d.left,right:d.right,top:d.top,bottom:d.bottom},d.direction==='-'?'bearOB':'bullOB',false,true);
+      if(fvgCheck.checked) for(const d of removedFVGs) drawZone(ctx,{left:d.left,right:d.right,top:d.top,bottom:d.bottom},d.kind==='bearish'?'bearFVG':'bullFVG',d.kind.startsWith('inverse'),true);
     }
     if(engineResult && obCheck.checked){
       const ob=engineResult.ob.state;
@@ -510,6 +648,7 @@ export function mountICTResearchViewer({chart, candles} = {}) {
   }
   function queueDraw(){if(raf)cancelAnimationFrame(raf);raf=requestAnimationFrame(redraw)}
   function applyBars(bars, meta) {
+    clearResearchPriceLines();
     if (!Array.isArray(bars) || !bars.length) throw new Error('No completed market candles available.');
     // Strict client-side boundary: never pass malformed or unfinished bars to chart or engine.
     for (let i=0; i<bars.length; i++) {
@@ -523,7 +662,8 @@ export function mountICTResearchViewer({chart, candles} = {}) {
     dataset = {bars};
     activeSource = meta.mode;
     currentMeta = meta;
-    engineResult = null;
+    engineResult = null;htfResult=null;
+    removedOBs=[];removedFVGs=[];
     macroResult = null;
     try {
       // These existing historical 4H/Macro modules accept 15M inputs only.
@@ -583,18 +723,38 @@ export function mountICTResearchViewer({chart, candles} = {}) {
     recalculateZones();
   }
   function recalculateZones(){
+    clearResearchPriceLines();
     if(!dataset || !currentMeta)return;
     const {bars}=dataset,meta=currentMeta;
-    engineResult=null;
-    // The three toggles below are actual engine calculation inputs, not cosmetic switches.
+    engineResult=null;htfResult=null;
+    // Independent HTF replay: only 5M; use confirmed 15M periods, never live HTF wicks.
+    if(selectedTimeframe===5){
+      try {
+        htfResult=replay15mHTFFVGOn5m(bars,{filterByHTFIR:htfIRFilterCheck.checked});
+        const m=htfResult.summary;
+        htfSummary.textContent=`15M HTF FVG (5M chart) · ${m.activeBullish} bullish · ${m.activeBearish} bearish · ${m.inverse} inverse · ${m.archived} historical removed. ${m.hasGaps?'Chart gaps present; FVG windows spanning missing intervals skipped.':''} Close-confirmed, provider-derived research; 60M HTF IR filter ${m.htfIRFilterApplied?'ON':'OFF'}${m.htfIRFilterApplied?` · last IR ${m.lastHTFIRDirection??'none'} · ${m.htfIREventCount} confirmed IR breaks`:''}. UTC period alignment provisional.`;
+      } catch(err) {
+        htfSummary.textContent=`15M HTF FVG unavailable: ${err.message}`;
+      }
+    } else htfSummary.textContent='15M HTF FVG overlay applies to the 5M chart only.';
+    // The toggles below are actual engine calculation inputs, not cosmetic switches.
     try {
       const result=calculateResearchZones(bars,{
         timeframeMinutes:selectedTimeframe,
         swingFilter:obSwingCheck.checked,
         atrFilter:obAtrCheck.checked,
         recentOB:fvgRecentCheck.checked,
+        obSessionFilter:obSessionCheck.checked,
+        obHHLLFilter:obHHLLCheck.checked,
+        obStructureFilter:obStructureCheck.checked,
+        fvgMinorFilter:fvgMinorCheck.checked,
+        fvgSessionFilter:fvgSessionCheck.checked,
+        fvgDisplacement:Number(fvgDisplacementInput.value),
+        fvgWideGap:Number(fvgWideGapInput.value),
       });
       engineResult=result;
+      removedOBs=archivedOrderBlocks(result.ob,bars);
+      removedFVGs=archivedFairValueGaps(result.lifecycle);
       const obCount=result.ob.state.bearBoxes.length+result.ob.state.bullBoxes.length;
       const fvgCount=result.lifecycle.drawings.filter(d=>!d.deleted).length;
       const direction=result.ob.state.lastOBDir;
@@ -630,7 +790,8 @@ export function mountICTResearchViewer({chart, candles} = {}) {
     if(heading)heading.textContent=`GONGOLA CHART · ${pair} ${selectedTimeframe}M`;
   }
   const clearDataset=()=>{
-    dataset=null;engineResult=null;structureResult=null;minorResult=null;macroResult=null;activeSource='none';currentMeta=null;minorSummary.textContent='4H Minor DOL: awaiting completed market candles.';macroSummary.textContent='ICT Macros: awaiting completed market candles.';reset.disabled=true;input.value='';candles.setData([]);
+    clearResearchPriceLines();
+    dataset=null;engineResult=null;htfResult=null;removedOBs=[];removedFVGs=[];structureResult=null;minorResult=null;macroResult=null;htfSummary.textContent='15M HTF FVG: select 5M and load completed candles.';activeSource='none';currentMeta=null;minorSummary.textContent='4H Minor DOL: awaiting completed market candles.';macroSummary.textContent='ICT Macros: awaiting completed market candles.';reset.disabled=true;input.value='';candles.setData([]);
     document.querySelector('#chart-empty')?.removeAttribute('hidden');
     document.querySelector('#current-price').textContent='—';
     document.querySelector('#quote-status').textContent='NO MARKET DATA LOADED';
@@ -653,15 +814,25 @@ export function mountICTResearchViewer({chart, candles} = {}) {
     message.className='ict-research-message warn';
     message.textContent='Chart cleared. Click Refresh market candles to reconnect, or import a matching CSV.';
   });
-  [obCheck,fvgCheck,dolCheck,minorCheck,structureCheck,macroCheck,swingCheck].forEach(i=>i.addEventListener('change',()=>{updateFilterCount();queueDraw();}));
-  [obSwingCheck,obAtrCheck,fvgRecentCheck].forEach(i=>i.addEventListener('change',()=>{updateFilterCount();recalculateZones();}));
+  [obCheck,fvgCheck,htfCheck,dolCheck,minorCheck,structureCheck,macroCheck,swingCheck].forEach(i=>i.addEventListener('change',()=>{updateFilterCount();queueDraw();}));
+  [obSwingCheck,obAtrCheck,obSessionCheck,obHHLLCheck,obStructureCheck,fvgRecentCheck,fvgMinorCheck,fvgSessionCheck,htfIRFilterCheck].forEach(i=>i.addEventListener('change',()=>{updateFilterCount();recalculateZones();}));
+  [fvgDisplacementInput,fvgWideGapInput].forEach(i=>i.addEventListener('change',recalculateZones));
   labelModeButton.addEventListener('click',()=>{recentStructuresOnly=!recentStructuresOnly;labelModeButton.textContent=recentStructuresOnly?'Structure: last 8':'Structure: all labels';queueDraw();});
   filterButton.addEventListener('click',()=>{
     zonesNearby = !zonesNearby;
     filterButton.textContent=zonesNearby?(selectedMarket==='BTCUSD'?'Zones: nearby 2.5%':'Zones: nearby $140'):'Zones: all history';
     queueDraw();
   });
-  latestButton.addEventListener('click',focusLatest);
+  latestButton.addEventListener('click',()=>{historyMode=false;historyButton.textContent='↶ History view';focusLatest();});
+  historyButton.addEventListener('click',()=>{
+    historyMode=!historyMode;
+    historyButton.textContent=historyMode?'↶ History on · removed zones faint':'↶ History view';
+    if(historyMode){
+      zonesNearby=false;filterButton.textContent='Zones: all history';
+      if(dataset?.bars.length){const n=dataset.bars.length;chart.timeScale().setVisibleLogicalRange({from:Math.max(0,n-500),to:n+8});}
+    }else{focusLatest();}
+    queueDraw();
+  });
   input.addEventListener('change',async()=>{
     const file=input.files?.[0];if(!file)return;
     message.className='ict-research-message';message.textContent=`Reading ${file.name}…`;
@@ -739,16 +910,24 @@ export function mountICTResearchViewer({chart, candles} = {}) {
     mountWorkspaceLayout();
     eliteUI = mountEliteWorkspace({
       chart,
-      layerControls:{ob:obCheck,fvg:fvgCheck,dol:dolCheck,minor:minorCheck,
+      layerControls:{ob:obCheck,fvg:fvgCheck,htf:htfCheck,dol:dolCheck,minor:minorCheck,
         structure:structureCheck,macro:macroCheck,swing:swingCheck},
       marketRow:selector,refreshButton:providerButton,autoLabel,
       latestButton,message,filterPanel,importPanel,
-      analysisPanel:detailPanel,legendPanel,
+      analysisPanel:detailPanel,legendPanel,onCloseInspector:clearResearchPriceLines,
     });
   });
   if (typeof chart.subscribeClick === 'function') chart.subscribeClick(param => {
     const zone=inspectZoneAtPoint(param?.point);
-    if(zone) eliteUI?.showZone(zone);
+    if(zone){
+      const levels=[...(structureResult?.dol?.lines||[]).map(x=>({...x,source:'Previous NY day'})),
+        ...(minorResult?.levels||[]).map(x=>({...x,source:'4H Minor DOL'}))];
+      const plan=buildResearchTradePlan({zone,bars:dataset.bars,
+        fifteenBars:selectedTimeframe===5?aggregate5mTo15m(dataset.bars):null,
+        levels,lastClose:dataset.bars.at(-1).close,timeframeMinutes:selectedTimeframe});
+      showResearchPriceLines(plan);
+      eliteUI?.showZone({...zone,plan});
+    }
   });
   queueDraw();
 }

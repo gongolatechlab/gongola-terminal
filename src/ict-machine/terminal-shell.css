@@ -1,0 +1,230 @@
+/* Gongola Terminal v1.4 — user-supplied compact terminal shell adapted to the
+   real chart DOM. No script, demo prices or simulated data from the HTML template. */
+body.gongola-elite.g-shell-v14 {
+  --g-bg:#0B0E11;--g-panel:#11151B;--g-raise:#171C24;--g-border:#232A35;
+  --g-text:#E6EAF0;--g-muted:#9AA4B2;--g-gold:#C9A45C;--g-up:#2EBD85;
+  --g-down:#F6465D;--g-liq:#5BA8C7;
+  background:var(--g-bg);color:var(--g-text);
+  font-family:Inter,"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+body.gongola-elite.g-shell-v14 #app{min-height:100dvh;display:flex;flex-direction:column}
+body.gongola-elite.g-shell-v14 .topbar {
+  order:0;display:flex;align-items:center;gap:10px;height:49px;min-height:49px;
+  padding:0 12px;background:var(--g-panel);border-bottom:1px solid var(--g-border);
+  position:relative;z-index:3;box-shadow:none;
+}
+body.gongola-elite.g-shell-v14 .topbar .brand{gap:0;min-width:25px;flex-shrink:0}
+body.gongola-elite.g-shell-v14 .topbar .brand-mark {
+  width:27px;height:27px;border-radius:4px;background:var(--g-raise);
+  border:1px solid #45433a;color:var(--g-gold);font-size:14px;
+}
+body.gongola-elite.g-shell-v14 .topbar .brand>div:last-child{display:none}
+body.gongola-elite.g-shell-v14 .market-header.g-shell-quote {
+  display:flex;gap:8px;align-items:center;justify-content:space-between;flex:1;min-width:0;
+  padding:0;margin:0;border:none;background:transparent;
+}
+body.gongola-elite.g-shell-v14 .g-shell-quote>.price-block{margin-left:auto;min-width:0;text-align:right;white-space:nowrap}
+body.gongola-elite.g-shell-v14 .g-shell-quote .eyebrow {display:none}
+body.gongola-elite.g-shell-v14 .g-shell-quote h1 {
+  margin:0;font-size:15px;font-weight:670;letter-spacing:.2px;line-height:1.25;
+}
+body.gongola-elite.g-shell-v14 .g-shell-quote .fixed-tf{font-size:8px;border:0;background:transparent;color:var(--g-muted);padding:0 2px}
+body.gongola-elite.g-shell-v14 .g-shell-quote .market-subtitle {
+  display:block;max-width:160px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;
+  margin:3px 0 0;font-size:9px;color:var(--g-muted);
+}
+body.gongola-elite.g-shell-v14 .g-shell-quote .price-block .price {
+  display:block;font:650 16px/1.25 ui-monospace,"IBM Plex Mono",monospace;
+  font-variant-numeric:tabular-nums;letter-spacing:-.2px;color:#edf0f2;
+}
+body.gongola-elite.g-shell-v14 .g-shell-quote .change{display:block;font-size:9px;margin-top:1px;color:var(--g-muted);max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body.gongola-elite.g-shell-v14 .g-shell-system-hidden{display:none!important}
+
+/* Single horizontal touch toolbar: compact, horizontally scrollable on phones. */
+body.gongola-elite.g-shell-v14 .gongola-elite-toolbar {
+  order:1;display:flex!important;align-items:center!important;justify-content:flex-start!important;
+  gap:6px!important;min-height:47px;max-height:51px;width:100%;padding:7px 10px!important;
+  margin:0!important;background:#0d1218!important;border:0!important;
+  border-bottom:1px solid var(--g-border)!important;border-radius:0!important;
+  overflow-x:auto;overflow-y:visible;scrollbar-width:none;position:relative;z-index:3;
+}
+body.gongola-elite.g-shell-v14 .gongola-elite-toolbar::-webkit-scrollbar{display:none}
+body.gongola-elite.g-shell-v14 .g-shell-picker-storage{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip-path:inset(50%);pointer-events:none}
+body.gongola-elite.g-shell-v14 .g-shell-symbol-select{flex:0 0 auto}
+body.gongola-elite.g-shell-v14 .g-shell-symbol-select select{
+  padding:6px 5px!important;width:87px;max-width:87px;min-height:29px!important;height:30px;
+  color:var(--g-text)!important;border:1px solid #303947!important;
+  border-radius:4px!important;background:var(--g-raise)!important;font-size:10px!important;
+  font-weight:620!important;outline-offset:2px;
+}
+body.gongola-elite.g-shell-v14 .g-shell-timeframes{display:flex;flex:none;border:1px solid #303947;border-radius:4px;overflow:hidden;min-height:30px}
+body.gongola-elite.g-shell-v14 .g-shell-tf{
+  border:none!important;border-radius:0!important;min-height:29px!important;height:29px!important;
+  padding:5px 9px!important;margin:0!important;background:transparent!important;
+  color:#9aa6b5!important;font:600 11px/1 system-ui,sans-serif!important;
+}
+body.gongola-elite.g-shell-v14 .g-shell-tf+.g-shell-tf{border-left:1px solid #303947!important}
+body.gongola-elite.g-shell-v14 .g-shell-tf.is-active{background:#202630!important;color:#f5ebd8!important;box-shadow:inset 0 -2px 0 var(--g-gold)}
+body.gongola-elite.g-shell-v14 .g-shell-layer-chips{display:flex;gap:5px;align-items:center;flex:none}
+body.gongola-elite.g-shell-v14 .g-shell-chip{
+  flex:none;min-height:29px!important;height:30px!important;padding:6px 8px!important;
+  font-size:10px!important;font-weight:560!important;white-space:nowrap!important;
+  background:transparent!important;border:1px solid #303947!important;
+  border-radius:4px!important;color:#8993a0!important;
+}
+body.gongola-elite.g-shell-v14 .g-shell-chip.is-active{color:#e7eaf0!important;background:#19202a!important;border-color:#475061!important}
+body.gongola-elite.g-shell-v14 .g-shell-chip.is-active::before{content:'';display:inline-block;width:6px;height:6px;border-radius:2px;margin-right:5px;background:#96a1ad;vertical-align:1px}
+body.gongola-elite.g-shell-v14 .g-shell-liq.is-active::before{background:var(--g-liq)}
+body.gongola-elite.g-shell-v14 .g-shell-zones.is-active::before{background:var(--g-down)}
+body.gongola-elite.g-shell-v14 .g-shell-structure.is-active::before{background:var(--g-gold)}
+body.gongola-elite.g-shell-v14 .g-shell-view-label{display:flex;align-items:center;flex:none;font-size:0}
+body.gongola-elite.g-shell-v14 .g-shell-view-label select{
+  padding:5px 6px!important;min-height:29px!important;height:30px!important;
+  max-width:105px;border:1px solid #303947!important;border-radius:4px!important;
+  background:var(--g-raise)!important;color:var(--g-text)!important;font-size:10px!important;
+}
+body.gongola-elite.g-shell-v14 .gongola-elite-commands.g-shell-commands{
+  display:flex!important;gap:5px;align-items:center;flex:none;margin-left:auto;
+}
+body.gongola-elite.g-shell-v14 .gongola-elite-commands .g-shell-icon{
+  width:30px!important;height:30px!important;min-width:30px!important;min-height:30px!important;
+  padding:0!important;border-radius:4px!important;border:1px solid #303947!important;
+  background:var(--g-raise)!important;color:#d8dee5!important;font-size:16px!important;
+  font-weight:600!important;line-height:1!important;box-shadow:none!important;
+}
+body.gongola-elite.g-shell-v14 .g-shell-settings-wrap{flex:none}
+body.gongola-elite.g-shell-v14 .gongola-elite-settings>summary{
+  display:grid;place-items:center;min-width:30px!important;width:30px!important;height:30px!important;
+  min-height:30px!important;padding:0!important;margin:0!important;
+  border:1px solid #303947!important;border-radius:4px!important;
+  background:var(--g-raise)!important;color:#e7eaf0!important;font-size:16px!important;
+}
+
+/* Live status row, data claims come from the actual application. */
+body.gongola-elite.g-shell-v14 .g-shell-status{
+  order:2;display:flex;align-items:center;gap:7px;padding:5px 12px;
+  min-height:29px;border-bottom:1px solid var(--g-border);
+  background:#0e1319;color:var(--g-muted);font-size:10px;z-index:2;
+}
+body.gongola-elite.g-shell-v14 .g-shell-status-dot{width:6px;height:6px;border-radius:50%;flex:none;background:#e0a93b}
+body.gongola-elite.g-shell-v14 .g-shell-status:has(.gongola-elite-message:not(.warn):not(.error)) .g-shell-status-dot{background:var(--g-up)}
+body.gongola-elite.g-shell-v14 .g-shell-status:has(.gongola-elite-message.warn) .g-shell-status-dot{background:#e0a93b}
+body.gongola-elite.g-shell-v14 .g-shell-status:has(.gongola-elite-message.error) .g-shell-status-dot{background:var(--g-down)}
+body.gongola-elite.g-shell-v14 .g-shell-status #live-label{flex:0 1 auto;min-width:0;max-width:36%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:600 9px system-ui,sans-serif;color:#c7b8a0}
+body.gongola-elite.g-shell-v14 .g-shell-status .gongola-elite-feed-status{
+  flex:1;min-width:0;margin:0!important;padding:0!important;border:0!important;
+  background:none;font-size:10px;
+}
+body.gongola-elite.g-shell-v14 .g-shell-status .gongola-elite-message{font-size:10px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:100%;padding:0;margin:0;color:#a5b1bd}
+body.gongola-elite.g-shell-v14 .g-shell-details{border:0;background:none;color:var(--g-gold);font:650 9px system-ui,sans-serif;letter-spacing:.4px;white-space:nowrap;flex:none;padding:3px}
+body.gongola-elite.g-shell-v14 .g-shell-status .expanded{align-self:stretch}
+body.gongola-elite.g-shell-v14 .g-shell-status .expanded .gongola-elite-message{white-space:normal;overflow-wrap:anywhere}
+
+/* Chart-first workspace. Retain Lightweight Charts canvas and zone overlay. */
+body.gongola-elite.g-shell-v14 .terminal{
+  order:3;flex:1;display:flex;flex-direction:column;gap:0;
+  max-width:1450px;width:100%;min-height:0;margin:0 auto;
+  padding:0 0 max(8px,env(safe-area-inset-bottom));
+}
+body.gongola-elite.g-shell-v14 .g-shell-chart-panel{
+  display:flex;flex-direction:column;min-height:0;min-width:0;flex:1 0 auto;
+  margin:0!important;padding:0!important;border:0!important;border-radius:0!important;background:var(--g-bg)!important;
+}
+body.gongola-elite.g-shell-v14 .g-shell-chart-panel>.panel-heading{display:none!important}
+body.gongola-elite.g-shell-v14 #research-controls.g-shell-control-storage{
+  padding:0!important;margin:0!important;height:0!important;min-height:0!important;overflow:hidden!important;border:0!important;
+}
+body.gongola-elite.g-shell-v14 .chart-wrapper#chart-wrapper{flex:1;min-height:370px!important;margin:0!important;background:var(--g-bg)!important}
+body.gongola-elite.g-shell-v14 .chart-wrapper #chart{
+  height:clamp(390px,calc(100dvh - 300px),900px)!important;
+  background:var(--g-bg)!important;
+}
+body.gongola-elite.g-shell-v14 .chart-wrapper canvas{border:0!important}
+body.gongola-elite.g-shell-v14 .chart-footnote{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:5px 10px!important;background:var(--g-panel)!important;border-top:1px solid var(--g-border)!important;
+  color:#788492!important;font-size:9px!important;line-height:1.3!important;
+}
+body.gongola-elite.g-shell-v14 .g-shell-chart-hint{color:#79848f;white-space:nowrap;font-size:9px;letter-spacing:.08px}
+
+/* Stats beneath the chart: use original dynamically updated metric nodes. */
+body.gongola-elite.g-shell-v14 .gongola-compact-context.g-shell-stats{
+  display:block!important;margin:0!important;padding:0!important;border:0!important;
+  border-top:1px solid var(--g-border)!important;background:var(--g-border)!important;
+}
+body.gongola-elite.g-shell-v14 .g-shell-stats>summary{display:none!important}
+body.gongola-elite.g-shell-v14 .g-shell-stats .gongola-elite-context{
+  display:block!important;margin:0!important;padding:0!important;border:0!important;background:transparent!important;
+}
+body.gongola-elite.g-shell-v14 .g-shell-stats .gongola-elite-context>.panel-heading{display:none!important}
+body.gongola-elite.g-shell-v14 .g-shell-stats .machine-grid.g-shell-metric-grid{
+  display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:1px!important;
+  overflow:visible!important;scroll-snap-type:none!important;margin:0!important;padding:0!important;
+}
+body.gongola-elite.g-shell-v14 .g-shell-stats .metric{
+  display:block!important;max-width:none!important;min-width:0!important;min-height:64px!important;
+  margin:0!important;padding:9px 12px!important;border:0!important;border-radius:0!important;
+  background:var(--g-panel)!important;flex:unset!important;
+}
+body.gongola-elite.g-shell-v14 .g-shell-stats .metric span{display:block;font-size:9px!important;color:#8794a3!important;letter-spacing:0!important;line-height:1.3!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.gongola-elite.g-shell-v14 .g-shell-stats .metric strong{display:block;font-size:14px!important;color:#e4eaf0!important;margin:5px 0 0!important;font-variant-numeric:tabular-nums;letter-spacing:0!important}
+body.gongola-elite.g-shell-v14 .g-shell-stats .metric strong.neutral{color:#b9a16e!important}
+body.gongola-elite.g-shell-v14 .terminal>footer{display:block;text-align:center;font-size:9px!important;padding:10px;color:#75838e}
+body.gongola-elite.g-shell-v14 #gongola-reference-switch,
+body.gongola-elite.g-shell-v14 #live-market-panel,
+body.gongola-elite.g-shell-v14 #gongola-tradingview-panel{margin:8px 10px!important;flex:none!important}
+
+/* Native bottom sheet for ALL existing advanced settings: no fake controls. */
+body.gongola-elite.g-shell-v14 .g-shell-settings-scrim{display:none;position:fixed;inset:0;background:rgba(0,0,0,.62);z-index:800;border:0;width:100%;height:100%;cursor:pointer}
+body.gongola-elite.g-shell-v14.g-shell-settings-open .g-shell-settings-scrim{display:block}
+body.gongola-elite.g-shell-v14 .gongola-elite-settings[open]>.gongola-elite-settings-body{
+  display:block!important;position:fixed!important;left:0;right:0;bottom:0;top:auto;
+  width:100%;max-height:77dvh;overflow:auto;overscroll-behavior:contain;
+  z-index:810!important;border-radius:12px 12px 0 0!important;
+  border:1px solid #34404d!important;border-bottom:0!important;
+  padding:20px 12px calc(24px + env(safe-area-inset-bottom))!important;
+  margin:0!important;background:#11151B!important;box-shadow:0 -18px 70px #000a;
+}
+body.gongola-elite.g-shell-v14 .gongola-elite-settings[open]>.gongola-elite-settings-body::before{
+  content:'ICT SETTINGS · CHART LAYERS & FILTERS';display:block;
+  color:#bfaa83;font:700 10px system-ui,sans-serif;letter-spacing:.9px;margin-bottom:14px;
+}
+body.gongola-elite.g-shell-v14 .gongola-elite-settings-body details{margin-bottom:7px;border-radius:5px!important}
+body.gongola-elite.g-shell-v14 .gongola-elite-settings-body details>summary{padding:11px 10px!important}
+body.gongola-elite.g-shell-v14 .gongola-elite-settings-body .ict-filter-grid{grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:7px}
+body.gongola-elite.g-shell-v14 .gongola-elite-settings-body .ict-filter-group{min-width:0;border-radius:4px!important}
+body.gongola-elite.g-shell-v14 .gongola-elite-settings-body .ict-check{font-size:12px}
+
+/* Keep the v1.3.1 trade ticket completely intact, including its input values. */
+body.gongola-elite.g-shell-v14 .gongola-elite-inspector-backdrop{z-index:1200!important}
+body.gongola-elite.g-shell-v14.gongola-focus-mode .g-shell-quote,
+body.gongola-elite.g-shell-v14.gongola-focus-mode .g-shell-stats,
+body.gongola-elite.g-shell-v14.gongola-focus-mode .terminal>footer{display:none!important}
+body.gongola-elite.g-shell-v14.gongola-focus-mode .topbar{display:none!important}
+body.gongola-elite.g-shell-v14.gongola-focus-mode .chart-wrapper #chart{
+  height:calc(100dvh - 105px)!important;max-height:none!important;min-height:400px!important;
+}
+@media (min-width:800px){
+  body.gongola-elite.g-shell-v14 .g-shell-stats .machine-grid.g-shell-metric-grid{grid-template-columns:repeat(5,minmax(0,1fr))!important}
+  body.gongola-elite.g-shell-v14 .chart-wrapper #chart{height:clamp(500px,calc(100dvh - 255px),990px)!important}
+  body.gongola-elite.g-shell-v14 .g-shell-quote .price-block .price{font-size:19px}
+  body.gongola-elite.g-shell-v14 .topbar{height:50px;min-height:50px;padding:0 20px}
+}
+@media (max-width:420px){
+  body.gongola-elite.g-shell-v14 .gongola-elite-toolbar{gap:5px!important;padding:6px 7px!important}
+  body.gongola-elite.g-shell-v14 .g-shell-quote .market-subtitle{max-width:122px}
+  body.gongola-elite.g-shell-v14 .g-shell-chart-hint{display:none}
+  body.gongola-elite.g-shell-v14 .g-shell-chart-panel .chart-footnote{font-size:8px!important}
+  body.gongola-elite.g-shell-v14 .g-shell-stats .metric{padding:9px 9px!important}
+  body.gongola-elite.g-shell-v14 .g-shell-stats .metric strong{font-size:13px!important}
+}
+@media (prefers-reduced-motion:reduce){body.gongola-elite.g-shell-v14 *{scroll-behavior:auto!important;transition:none!important}}
+/* Keep the fixed settings sheet above its scrim despite toolbar stacking. */
+body.gongola-elite.g-shell-v14.g-shell-settings-open .gongola-elite-toolbar{z-index:900!important}
+
+body.gongola-elite.g-shell-v14 .gongola-elite-settings[open]{width:30px!important;min-width:30px!important}
+body.gongola-elite.g-shell-v14 .g-shell-sheet-close{
+  position:sticky;top:0;float:right;z-index:2;border:1px solid #49515d!important;
+  border-radius:4px!important;padding:6px 11px!important;min-height:29px!important;
+  background:#1f2935!important;color:#e9d5ac!important;font-size:11px!important;margin:-4px 0 8px 8px;
+}

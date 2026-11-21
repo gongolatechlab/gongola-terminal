@@ -13,12 +13,12 @@
 const FIFTEEN = 15 * 60_000;
 const FOUR_HOURS = 4 * 60 * 60_000;
 
-function validate(bars) {
+function validate(bars, chartTfMs) {
   if (!Array.isArray(bars) || bars.length === 0) throw new Error('Minor DOL requires historical candles.');
   let previous = -Infinity;
   for (let i = 0; i < bars.length; i++) {
     const b = bars[i];
-    if (!b || !Number.isSafeInteger(b.time) || b.time % FIFTEEN !== 0 || b.time <= previous ||
+    if (!b || !Number.isSafeInteger(b.time) || b.time % chartTfMs !== 0 || b.time <= previous ||
         ![b.open,b.high,b.low,b.close].every(Number.isFinite) ||
         b.high < Math.max(b.open,b.close,b.low) || b.low > Math.min(b.open,b.close,b.high)) {
       throw new Error(`Invalid 15m candle at index ${i}.`);
@@ -44,15 +44,19 @@ export function calculateMinorDOL(bars, {
   maxTSLabels = 10,
   minBarsBOS = 3,
   boundaryOffsetMs = 0,
+  chartTfMs = FIFTEEN,
 } = {}) {
-  validate(bars);
+  if (![5 * 60_000, FIFTEEN].includes(chartTfMs)) {
+    throw new Error('Minor DOL context requires 5M or 15M chart candles.');
+  }
+  validate(bars, chartTfMs);
   if (periodMs !== FOUR_HOURS) throw new Error('Only 4-hour Minor DOL is supported in this build.');
   for (const [name,value] of Object.entries({maxUnmitigated,maxMitigated,maxBOSLabels,maxTSLabels,minBarsBOS})) {
     if (!Number.isInteger(value) || value < (name === 'maxUnmitigated' ? 1 : 0) || value > 500) {
       throw new RangeError(`Invalid ${name}.`);
     }
   }
-  if (!Number.isInteger(boundaryOffsetMs) || boundaryOffsetMs % FIFTEEN !== 0 ||
+  if (!Number.isInteger(boundaryOffsetMs) || boundaryOffsetMs % chartTfMs !== 0 ||
       boundaryOffsetMs < 0 || boundaryOffsetMs >= FOUR_HOURS) {
     throw new RangeError('Invalid 4H boundary offset.');
   }
@@ -64,6 +68,9 @@ export function calculateMinorDOL(bars, {
   const watches = {BSL: null, SSL: null};
   const counts = {levelsCreated:0, levelsMitigated:0, BOS:0, MSS:0, TS:0, TSReversed:0};
   let currentDirection = null;
+  let lastFvgFilterDir = null;
+  let lastStructBreakDirTime = null;
+  const snapshots = [];
   let period = null, extrema = null;
   let lastTime = null;
 
@@ -107,6 +114,8 @@ export function calculateMinorDOL(bars, {
     trim(bosLabels,maxBOSLabels);
     counts[classification]++;
     currentDirection = direction;
+    lastFvgFilterDir = direction;
+    lastStructBreakDirTime = eventTime;
     return event;
   }
 
@@ -121,6 +130,8 @@ export function calculateMinorDOL(bars, {
     tsLabels.push(event);
     trim(tsLabels,maxTSLabels);
     counts.TS++;
+    // Turtle Soup updates lastFvgFilterDir without changing lastStructBreakDir.
+    lastFvgFilterDir = direction;
     // Pine keeps only the most recent pending TS reversal reference per side.
     lastTSEvent[type] = event;
   }
@@ -187,6 +198,15 @@ export function calculateMinorDOL(bars, {
         lastTSEvent[type]=null;
       }
     }
+    // This snapshot is the POST-bar state. The OB engine on bar N must only
+    // read the snapshot from bars that CLOSED before bar N opened, because
+    // Pine executes its OB engine earlier than the Minor DOL block.
+    snapshots.push({
+      time:b.time, end:b.time + chartTfMs,
+      highTime:extrema.highTime, lowTime:extrema.lowTime,
+      lastFvgFilterDir, lastStructBreakDir:currentDirection,
+      lastStructBreakDirTime,
+    });
     lastTime=b.time;
   }
   return {
@@ -195,6 +215,6 @@ export function calculateMinorDOL(bars, {
     currentDirection,
     activeBSL:active.BSL.length,activeSSL:active.SSL.length,
     mitigatedBSL:mitigated.BSL.length,mitigatedSSL:mitigated.SSL.length,
-    counts, boundaries:'UTC-4H', lastTime,
+    counts, snapshots, boundaries:'UTC-4H', lastTime,
   };
 }

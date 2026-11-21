@@ -1,6 +1,10 @@
 /** Premium MOBILE-FIRST CHART WORKSPACE. All calculations remain in browser-research.js.
  * Reparents existing controls rather than cloning; existing listeners stay active. */
 import './elite-workspace.css';
+import './trade-inspector.css';
+import './professional-ui.css';
+import {mountTerminalShell} from './terminal-shell.js';
+import {presentResearchTicket} from './professional-trade-view.js';
 import {LAYER_KEYS, getPresetVisibility, matchingPreset} from './elite-presets.js';
 
 const make = (tag, className = '', text = '') => {
@@ -12,7 +16,7 @@ const make = (tag, className = '', text = '') => {
 
 export function mountEliteWorkspace({
   chart, layerControls, marketRow, refreshButton, autoLabel,
-  latestButton, message, filterPanel, importPanel, analysisPanel, legendPanel,
+  latestButton, message, filterPanel, importPanel, analysisPanel, legendPanel, onCloseInspector,
 } = {}) {
   if (document.querySelector('#gongola-elite-toolbar')) return null;
   const terminal = document.querySelector('.terminal');
@@ -38,12 +42,18 @@ export function mountEliteWorkspace({
   const commands = make('div', 'gongola-elite-commands');
   refreshButton.classList.add('gongola-elite-refresh');
   refreshButton.title = 'Refresh completed provider candles';
+  refreshButton.setAttribute('aria-label', 'Refresh completed market candles');
+  refreshButton.textContent = '↻';
   commands.append(refreshButton, latestButton);
   latestButton.classList.add('gongola-elite-latest');
-  const focusButton = make('button', 'gongola-elite-focus', '⛶ Focus');
+  latestButton.title = 'Go to latest 170 candles';
+  latestButton.setAttribute('aria-label', 'Go to latest 170 candles');
+  latestButton.textContent = '◎';
+  const focusButton = make('button', 'gongola-elite-focus', '⛶');
   focusButton.type = 'button';
   focusButton.setAttribute('aria-pressed', 'false');
   focusButton.title = 'Focus on the chart (Escape to exit)';
+  focusButton.setAttribute('aria-label', 'Focus mode');
   commands.append(focusButton);
   toolbar.append(pickerWrap, commands);
   marketHeader.after(toolbar);
@@ -62,9 +72,23 @@ export function mountEliteWorkspace({
     presetBar.append(button);
     buttons.set(key, button);
   }
+  // The mobile layout uses one native selection control instead of four wide buttons.
+  // Existing desktop buttons and their listeners remain supported.
+  const mobilePreset = make('select', 'gongola-elite-mobile-preset');
+  mobilePreset.setAttribute('aria-label', 'Chart overlay visibility preset');
+  for (const [value, label] of [
+    ['custom', 'Custom view'], ['clean', 'Clean'], ['structure', 'Structure'],
+    ['liquidity', 'Liquidity'], ['full', 'Full ICT'],
+  ]) {
+    const option = make('option', '', label);
+    option.value = value;
+    if (value === 'custom') option.disabled = true;
+    mobilePreset.append(option);
+  }
   const settings = make('details', 'gongola-elite-settings');
   settings.id = 'gongola-elite-settings';
-  const summary = make('summary', '', '⚙ Settings');
+  const summary = make('summary', '', '⚙');
+  summary.title = 'ICT Settings';
   summary.setAttribute('aria-label', 'Expand chart layers and ICT filters');
   const settingsBody = make('div', 'gongola-elite-settings-body');
   for (const panel of [filterPanel, importPanel, analysisPanel, legendPanel]) {
@@ -74,7 +98,7 @@ export function mountEliteWorkspace({
   if (autoLabel) autoWrap.append(autoLabel);
   settingsBody.append(autoWrap);
   settings.append(summary, settingsBody);
-  strip.append(caption, presetBar, settings);
+  strip.append(caption, presetBar, mobilePreset, settings);
   controlsMount.prepend(strip);
 
   // Leave the original diagnostics visible in a compact, expandable-by-tap strip.
@@ -94,7 +118,12 @@ export function mountEliteWorkspace({
   // Compact market-context cards. Do NOT infer one overall directional bias.
   if (context) {
     context.classList.add('gongola-elite-context');
-    chartPanel.before(context);
+    // Market metrics are available on demand; do not consume the first mobile viewport.
+    const contextDrawer = make('details', 'gongola-compact-context');
+    const contextSummary = make('summary', '', 'Market context');
+    contextSummary.setAttribute('aria-label', 'Expand market structure and liquidity snapshot');
+    contextDrawer.append(contextSummary, context);
+    chartPanel.after(contextDrawer);
     const grid = context.querySelector('.machine-grid');
     if (grid && !document.querySelector('#gongola-structure-direction')) {
       const metric = make('div', 'metric');
@@ -111,6 +140,7 @@ export function mountEliteWorkspace({
   }
   function syncPresets() {
     const selected = matchingPreset(readLayers());
+    mobilePreset.value = selected || 'custom';
     for (const [key, button] of buttons) {
       const active = key === selected;
       button.classList.toggle('selected', active);
@@ -118,7 +148,7 @@ export function mountEliteWorkspace({
     }
   }
   for (const key of LAYER_KEYS) layerControls[key].addEventListener('change', syncPresets);
-  for (const [key, button] of buttons) button.addEventListener('click', () => {
+  function applyPreset(key) {
     const chosen = getPresetVisibility(key);
     for (const layerKey of LAYER_KEYS) {
       const input = layerControls[layerKey];
@@ -128,12 +158,18 @@ export function mountEliteWorkspace({
       }
     }
     syncPresets();
+  }
+  for (const [key, button] of buttons) button.addEventListener('click', () => applyPreset(key));
+  mobilePreset.addEventListener('change', () => {
+    if (mobilePreset.value !== 'custom') applyPreset(mobilePreset.value);
   });
   syncPresets(); // Preserve preexisting layer settings on installation.
 
   function setFocus(enabled) {
     document.body.classList.toggle('gongola-focus-mode', enabled);
-    focusButton.textContent = enabled ? '↙ Exit focus' : '⛶ Focus';
+    focusButton.textContent = enabled ? '↙' : '⛶';
+    focusButton.setAttribute('aria-label', enabled ? 'Exit focus mode' : 'Focus mode');
+    focusButton.title = enabled ? 'Exit focus mode' : 'Focus on chart';
     focusButton.setAttribute('aria-pressed', String(enabled));
     requestAnimationFrame(() => {
       // Existing ResizeObserver and resize listener update chart dimensions.
@@ -157,11 +193,11 @@ export function mountEliteWorkspace({
   const close = make('button', '', '✕ Close');
   close.type = 'button';
   top.append(heading, close);
-  const body = make('dl', 'gongola-elite-inspector-values');
+  const body = make('div', 'gongola-elite-inspector-values');
   sheet.append(top, body);
   inspectShade.append(sheet);
   document.body.append(inspectShade);
-  const dismiss = () => { inspectShade.hidden = true; };
+  const dismiss = () => { inspectShade.hidden = true; if(typeof onCloseInspector==='function')onCloseInspector(); };
   close.addEventListener('click', dismiss);
   inspectShade.addEventListener('click', e => { if (e.target === inspectShade) dismiss(); });
   window.addEventListener('keydown', e => { if (e.key === 'Escape') dismiss(); });
@@ -179,8 +215,33 @@ export function mountEliteWorkspace({
       const dt = make('dt', '', key);const dd = make('dd', '', String(value ?? 'Not available'));
       body.append(dt, dd);
     }
+    const p=data.plan;
+    const section=make('div','gongola-trade-section','RESEARCH SCENARIO · NOT AN ORDER');
+    body.append(section);
+    const values=p && p.status!=='unavailable'
+      ? {'Direction':p.direction==='bullish'?'BUY (illustrative)':'SELL (illustrative)',
+         'Entry model':p.entryRule,'Entry':Number(p.entry).toFixed(2),
+         'Stop rule':p.stopRule,'Stop Loss':Number(p.stop).toFixed(2),
+         'Risk distance':Number(p.risk).toFixed(2),
+         'Take Profit (next untaken liquidity)':p.target===null?'Not available':Number(p.target).toFixed(2),
+         'Target source':p.targetSource??'Not available',
+         'Reward distance':p.reward===null?'Not available':Number(p.reward).toFixed(2),
+         'Risk:Reward':p.rr===null?'Not available':'1:' + p.rr.toFixed(2)}
+      : {'Research plan':'Unavailable'};
+    for(const [key,value] of Object.entries(values)){
+      body.append(make('dt','',key),make('dd','',String(value)));
+    }
+    const note=make('div','gongola-trade-note',p?.message||'No trade model for this drawing.');
+    body.append(note);
+    body.append(make('div','gongola-trade-warning',
+      'Research projection only. The Pine signal filter is OFF; no order is placed. Prices exclude spread, slippage and fees.'));
+    presentResearchTicket(body, data);
     inspectShade.hidden = false;
     close.focus();
   }
+  mountTerminalShell({
+    toolbar,settings,mobilePreset,layerControls,refreshButton,latestButton,
+    focusButton,context,message,
+  });
   return {showZone, syncPresets, setFocus};
 }

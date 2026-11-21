@@ -1,8 +1,11 @@
 import { mountLiveMarket } from './ict-machine/live-market.js';
+import {isTerminalPath,mountLandingPage} from './landing/landing-page.js';
+import {isIntelligencePath,mountIntelligencePage,intelligenceUrl} from './intelligence/intelligence.js';
 import './style.css';
 import { createChart, CandlestickSeries, ColorType } from 'lightweight-charts';
 import { mountICTResearchViewer } from './ict-machine/browser-research.js';
 
+if (isTerminalPath()) {
 // Research-only interface: no simulated price feed, fake bars, or live signals.
 document.querySelector('#app').innerHTML = `
   <header class="topbar">
@@ -74,6 +77,13 @@ extraStyle.textContent = `
   @media (max-width:550px){.terminal{padding:14px 9px}.market-header{align-items:flex-start}.market-header h1{font-size:23px}.price{font-size:18px}.chart-wrapper #chart{height:470px}.machine-version{font-size:7px}.topbar{padding:0 10px}}
 `;
 document.head.append(extraStyle);
+// Navigate to a separate macro research desk. No chart logic is touched.
+const macroNav = document.createElement('a');
+macroNav.href = intelligenceUrl;
+macroNav.textContent = 'MACRO DESK ↗';
+macroNav.setAttribute('aria-label','Open Gongola Market Intelligence');
+macroNav.style.cssText = 'font:650 10px Inter,system-ui,sans-serif;letter-spacing:.5px;color:#d5b67c;text-decoration:none;padding:8px 4px;white-space:nowrap';
+document.querySelector('.topbar')?.append(macroNav);
 
 const chartElement = document.getElementById('chart');
 const chart = createChart(chartElement, {
@@ -101,3 +111,8 @@ if(typeof ResizeObserver !== 'undefined'){
 }
 
 mountLiveMarket();
+} else if (isIntelligencePath()) {
+  mountIntelligencePage();
+} else {
+  mountLandingPage();
+}
