@@ -87,6 +87,14 @@ macroNav.setAttribute('aria-label','Open Gongola Market Intelligence');
 macroNav.style.cssText = 'font:650 10px Inter,system-ui,sans-serif;letter-spacing:.5px;color:#d5b67c;text-decoration:none;padding:8px 4px;white-space:nowrap';
 document.querySelector('.topbar')?.append(macroNav);
 
+// The ICT Hub is the separate education and community platform, not a shared Terminal account.
+const hubNav = document.createElement('a');
+hubNav.href = 'https://gongolatechlab.github.io/gongola-ict-hub/';
+hubNav.textContent = 'ICT HUB ↗';
+hubNav.setAttribute('aria-label','Visit Gongola ICT Hub education and trading community');
+hubNav.style.cssText = 'font:650 10px Inter,system-ui,sans-serif;letter-spacing:.4px;color:#9abaff;text-decoration:none;padding:8px 3px;white-space:nowrap';
+document.querySelector('.topbar')?.append(hubNav);
+
 // Choose a guest workspace or restore a signed-in profile before loading saved filters.
 await initializeTerminalAccess();
 

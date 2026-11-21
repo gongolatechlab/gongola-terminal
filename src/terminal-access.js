@@ -120,7 +120,11 @@ function mountAccountControl(profile){
     if(/^https:\/\/[^/]+/i.test(link))window.open(link,'_blank','noopener,noreferrer');
     else status.textContent='Official coffee support link will be available soon.';
   });
-  pop.append(label,note,status,action,coffee);
+  const hub=make('a','gongola-account-hub','↗ Gongola ICT Hub · Education & Community');
+  hub.href='https://gongolatechlab.github.io/gongola-ict-hub/';
+  hub.target='_blank';hub.rel='noopener noreferrer';
+  hub.style.cssText='display:block;margin-top:9px;padding:9px 10px;color:#a9c5fa;background:#1a2939;border:1px solid #3d5573;border-radius:6px;font-size:11px;text-decoration:none';
+  pop.append(label,note,status,action,hub,coffee);
   const box=make('div','gongola-account-wrap');
   box.append(btn,pop);
   btn.addEventListener('click',()=>{pop.hidden=!pop.hidden;btn.setAttribute('aria-expanded',String(!pop.hidden));});
@@ -185,7 +189,11 @@ function buildWelcome(){
   supportFeedback.setAttribute('role','status');
   supportFeedback.setAttribute('aria-live','polite');
   coffee.append(supportFeedback);
-  card.append(brand,badge,heading,sub,panel,actions,form,privacy,coffee);
+  const hubLink=make('a','gongola-welcome-hub','Explore Gongola ICT Hub · Education & Community ↗');
+  hubLink.href='https://gongolatechlab.github.io/gongola-ict-hub/';
+  hubLink.target='_blank';hubLink.rel='noopener noreferrer';
+  hubLink.style.cssText='display:block;margin-top:16px;color:#a9c5fa;font-size:11px;text-decoration:underline;text-underline-offset:3px';
+  card.append(brand,badge,heading,sub,panel,actions,form,privacy,hubLink,coffee);
   welcome.append(card);
   document.body.append(welcome);
   email.addEventListener('click',()=>{
